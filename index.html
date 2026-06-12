@@ -344,6 +344,66 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 ::-webkit-scrollbar { width:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--gold-lighter); border-radius:3px; }
+
+/* ── INVITE SCREEN ──────────────────────────────── */
+#invite-screen {
+  position:fixed; inset:0; z-index:1000;
+  background:linear-gradient(160deg,#fdf8f2 0%,#f8f2ea 50%,#f3eee8 100%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:32px;
+}
+.invite-ornament {
+  font-family:'Cormorant Garamond',serif;
+  font-size:13px; color:var(--gold); letter-spacing:6px; margin-bottom:12px;
+}
+.invite-title {
+  font-family:'Cormorant Garamond',serif;
+  font-size:32px; font-weight:500; color:var(--text);
+  letter-spacing:2px; margin-bottom:6px; text-align:center;
+}
+.invite-sub {
+  font-size:12px; color:var(--text-light); letter-spacing:3px;
+  margin-bottom:40px; text-align:center;
+}
+.invite-box {
+  background:rgba(255,255,255,.9); border:1px solid var(--border);
+  border-radius:var(--radius-xl); padding:32px 28px;
+  box-shadow:var(--shadow-modal); width:100%; max-width:360px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.invite-label {
+  font-size:10px; letter-spacing:3px; color:var(--gold);
+  text-transform:uppercase; text-align:center;
+}
+.invite-divider { display:flex; align-items:center; gap:10px; }
+.invite-divider-line { flex:1; height:1px; background:var(--gold-lighter); }
+.invite-divider-text { font-family:'Cormorant Garamond',serif; font-size:13px; color:var(--gold); }
+.invite-input {
+  width:100%; padding:14px 18px; border-radius:var(--radius);
+  border:1.5px solid var(--border); background:rgba(255,255,255,.85);
+  font-size:20px; font-weight:500; color:var(--text);
+  font-family:'Montserrat',sans-serif; letter-spacing:6px;
+  text-align:center; outline:none; transition:border-color .2s;
+}
+.invite-input:focus { border-color:var(--gold-light); background:var(--white); }
+.invite-input.error { border-color:#e74c3c; animation:shake .3s ease; }
+@keyframes shake {
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}
+}
+.invite-error {
+  font-size:12px; color:#e74c3c; text-align:center;
+  min-height:18px; letter-spacing:1px;
+}
+.invite-btn {
+  width:100%; padding:15px; border-radius:14px;
+  background:var(--gold-btn); border:none;
+  font-size:15px; font-weight:500; color:#fff;
+  cursor:pointer; font-family:'Noto Sans TC',sans-serif; letter-spacing:3px;
+  box-shadow:0 4px 18px rgba(180,130,50,.35); transition:all .18s;
+}
+.invite-btn:hover { box-shadow:0 6px 28px rgba(180,130,50,.5); transform:translateY(-1px); }
 </style>
 </head>
 <body>
@@ -352,6 +412,26 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 <div id="toast"></div>
 
 <!-- LOADING -->
+<!-- INVITE SCREEN -->
+<div id="invite-screen">
+  <div class="invite-ornament">✦ 婚禮管理系統 ✦</div>
+  <div class="invite-title">安心相守，玄定是你</div>
+  <div class="invite-sub">WEDDING MANAGEMENT</div>
+  <div class="invite-box">
+    <div class="invite-label">請輸入邀請碼</div>
+    <div class="invite-divider">
+      <div class="invite-divider-line"></div>
+      <div class="invite-divider-text">— ♡ —</div>
+      <div class="invite-divider-line"></div>
+    </div>
+    <input class="invite-input" id="invite-input" type="password"
+      placeholder="••••••" maxlength="20"
+      onkeydown="if(event.key==='Enter') checkInvite()" />
+    <div class="invite-error" id="invite-error"></div>
+    <button class="invite-btn" onclick="checkInvite()">進入系統</button>
+  </div>
+</div>
+
 <div id="loading-overlay">
   <div class="loading-flower">✿</div>
   <div class="loading-text">載入賓客資料中</div>
@@ -527,7 +607,9 @@ function showToast(msg, type='ok', duration=3000) {
 }
 
 // ── 載入 ─────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', loadAll);
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('invited') === '1') loadAll();
+});
 
 async function loadAll() {
   try {
@@ -903,6 +985,57 @@ async function saveNewGuest() {
     showToast(`✗ 新增失敗：${e.message || '網路錯誤'}`, 'err', 6000);
   }
 }
+
+// ── 邀請碼（送到 Worker 驗證，HTML 裡沒有明文）────────
+async function checkInvite() {
+  const input = document.getElementById('invite-input');
+  const error = document.getElementById('invite-error');
+  const btn   = document.querySelector('.invite-btn');
+  const code  = input.value.trim();
+  if (!code) return;
+
+  btn.disabled = true;
+  btn.textContent = '驗證中…';
+
+  try {
+    const resp = await fetch(GAS_URL + '/verify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ code })
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      sessionStorage.setItem('invited', '1');
+      const screen = document.getElementById('invite-screen');
+      screen.style.opacity = '0';
+      screen.style.transition = 'opacity .4s ease';
+      setTimeout(() => { screen.remove(); loadAll(); }, 400);
+    } else {
+      error.textContent = '邀請碼錯誤，請再試一次';
+      input.classList.add('error');
+      input.value = '';
+      btn.disabled = false;
+      btn.textContent = '進入系統';
+      setTimeout(() => { input.classList.remove('error'); input.focus(); }, 300);
+    }
+  } catch(e) {
+    error.textContent = '驗證失敗，請檢查網路連線';
+    btn.disabled = false;
+    btn.textContent = '進入系統';
+  }
+}
+
+// 已驗證過則直接進入
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('invited') === '1') {
+    const screen = document.getElementById('invite-screen');
+    if (screen) screen.remove();
+  } else {
+    setTimeout(() => document.getElementById('invite-input')?.focus(), 100);
+  }
+});
+
 </script>
 </body>
 </html>
