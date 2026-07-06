@@ -58,7 +58,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 
 /* ── STATS ─────────────────────────────────────── */
 .stats-section { padding:20px var(--pad) 0; }
-.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 .stat-card {
   background:rgba(255,255,255,.9); border:1px solid var(--border);
   border-radius:var(--radius); padding:18px 12px 16px;
@@ -68,6 +68,79 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .stat-num { font-family:'Cormorant Garamond',serif; font-size:38px; font-weight:600; color:var(--gold); line-height:1; }
 .stat-unit { font-size:10px; color:var(--text-light); margin-top:4px; }
 .stat-card.green-num .stat-num { color:var(--green); }
+.stat-num.frac { font-size:26px; }
+@media (max-width:640px) { .stat-num.frac { font-size:19px; } }
+.stat-line1 { font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:600; color:var(--gold); line-height:1.15; }
+.stat-card.green-num .stat-line1 { color:var(--green); }
+.stat-line2 { font-size:11px; color:var(--text-mid); margin-top:7px; font-weight:500; letter-spacing:.02em; }
+@media (max-width:640px) { .stat-line1 { font-size:21px; } .stat-line2 { font-size:10px; } }
+
+/* ── GIFT TOGGLE ───────────────────────────────── */
+.gift-toggle {
+  margin-top:8px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  background:rgba(255,255,255,.7); border:1px solid var(--border); border-radius:20px;
+  padding:5px 11px; font-size:11px; color:var(--text-mid); user-select:none;
+  transition:all .15s; font-family:'Noto Sans TC',sans-serif;
+}
+.gift-toggle:hover { background:var(--cream2); }
+.gift-toggle-dot { width:9px; height:9px; border-radius:50%; background:var(--cream3); transition:all .15s; flex-shrink:0; }
+.gift-toggle.on .gift-toggle-dot { background:var(--gold); box-shadow:0 0 0 3px var(--gold-lighter); }
+.gift-toggle.on { border-color:var(--gold-light); color:var(--gold-dark); }
+
+/* ── QUICK NAV ─────────────────────────────────── */
+.quick-nav { padding:14px var(--pad) 0; }
+.quick-nav-btn {
+  width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  background:rgba(255,255,255,.85); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px; font-size:13px; font-weight:500; color:var(--gold-dark); cursor:pointer;
+  box-shadow:var(--shadow-card); transition:all .2s; font-family:'Noto Sans TC',sans-serif;
+}
+.quick-nav-btn:hover { transform:translateY(-2px); box-shadow:var(--shadow-hover); background:#fff; }
+
+/* ── TABLES OVERVIEW PAGE ──────────────────────── */
+.table-card {
+  background:rgba(255,255,255,.9); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px 16px 14px;
+  box-shadow:var(--shadow-card);
+}
+.table-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.table-card-name { font-size:15px; font-weight:500; color:var(--text); }
+.table-card-ratio { font-size:12px; color:var(--text-mid); font-weight:500; }
+.table-card-ratio .r-ok { color:var(--green); }
+.seat-icons-row { display:flex; flex-wrap:wrap; gap:4px; }
+.seat-icon {
+  width:13px; height:13px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:7px; font-weight:700; color:#fff;
+  background:var(--cream3); transition:all .15s;
+}
+.seat-icon.checked { background:var(--green); }
+.seat-icon.pending { background:var(--cream3); color:var(--text-light); }
+.tables-summary { padding:14px var(--pad) 0; font-size:12px; color:var(--text-mid); }
+.tables-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px var(--pad) 36px; }
+.table-card.full { grid-column:1 / -1; }
+.table-card { padding:12px 12px 11px; cursor:pointer; }
+.table-card:hover { box-shadow:0 6px 24px rgba(140,110,80,.15); background:#fff; transform:translateY(-1px); }
+.table-card-head { margin-bottom:8px; }
+.table-card-name { font-size:13px; }
+.table-card-ratio { font-size:11px; }
+@media (max-width:480px) { .tables-grid-layout { grid-template-columns:1fr 1fr; gap:8px; } }
+
+/* ── TABLE GUEST LIST MODAL ────────────────────── */
+.tm-row {
+  display:flex; align-items:center; gap:10px; padding:11px 4px;
+  border-bottom:1px solid var(--border); cursor:pointer; transition:background .15s;
+}
+.tm-row:last-child { border-bottom:none; }
+.tm-row:hover { background:var(--cream2); }
+.tm-dot { width:9px; height:9px; border-radius:50%; background:var(--cream3); flex-shrink:0; }
+.tm-dot.on { background:var(--green); }
+.tm-name { flex:1; font-size:13px; color:var(--text); }
+.tm-seats { font-size:11px; color:var(--text-light); }
+.group-note {
+  font-size:10.5px; color:var(--text-light); text-align:center;
+  padding:0 var(--pad); margin-top:-6px;
+}
 
 /* ── DIVIDER ───────────────────────────────────── */
 .divider-section { padding:24px var(--pad) 16px; display:flex; align-items:center; gap:14px; }
@@ -449,6 +522,10 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   <div class="header-right">
     <div class="header-date">2026年11月14日</div>
     <div class="header-ornament"> — ♡ — </div>
+    <div class="gift-toggle" id="gift-toggle" onclick="toggleGiftVisibility()">
+      <span class="gift-toggle-dot"></span>
+      <span id="gift-toggle-text">顯示收禮金</span>
+    </div>
   </div>
 </header>
 
@@ -456,22 +533,20 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 <div id="home" class="page active">
   <div class="stats-section">
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">總賓客數</div>
-        <div class="stat-num" id="s-total">—</div>
-        <div class="stat-unit" id="s-total-unit">位</div>
-      </div>
       <div class="stat-card green-num">
-        <div class="stat-label">已報到</div>
-        <div class="stat-num" id="s-checked">—</div>
-        <div class="stat-unit" id="s-checked-unit">位</div>
+        <div class="stat-label">已報到賓客（含攜伴）</div>
+        <div class="stat-line1" id="s-checked-total">—</div>
+        <div class="stat-line2" id="s-checked-sides">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">尚未報到</div>
-        <div class="stat-num" id="s-pending">—</div>
-        <div class="stat-unit" id="s-pending-unit">位</div>
+        <div class="stat-label">已領取喜餅賓客（不含攜伴）</div>
+        <div class="stat-line1" id="s-cake-total">—</div>
+        <div class="stat-line2" id="s-cake-sides">—</div>
       </div>
     </div>
+  </div>
+  <div class="quick-nav">
+    <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
   </div>
   <div class="divider-section">
     <div class="divider-line"></div>
@@ -480,6 +555,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
     <div class="divider-diamond">✦</div>
     <div class="divider-line"></div>
   </div>
+  <div class="group-note">＊以下各分類為登記賓客（不含攜伴）</div>
   <div class="sides-wrapper">
     <div class="side-col groom-col">
       <div id="groom-groups"></div>
@@ -499,6 +575,17 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 
   </div>
   <div class="guest-grid" id="guest-grid"></div>
+</div>
+
+<!-- TABLES OVERVIEW -->
+<div id="tables-page" class="page">
+  <div class="list-header">
+    <button class="back-btn" onclick="goHomeFromTables()">← 返回</button>
+    <div class="list-header-title">🪑 桌次報到總覽</div>
+    <div class="list-header-count" id="tables-count"></div>
+  </div>
+  <div class="tables-summary">綠色圓點為已報到賓客（含攜伴）</div>
+  <div id="tables-grid" class="tables-grid-layout"></div>
 </div>
 
 <!-- 登記 MODAL -->
@@ -524,9 +611,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
           <button class="seat-btn" onclick="changeSeat(1)">＋</button>
         </div>
       </div>
-      <div class="section-label">禮金金額</div>
+      <div class="section-label" id="gift-section-label">禮金金額</div>
       <div class="amount-grid" id="amount-grid"></div>
-      <div class="custom-row">
+      <div class="custom-row" id="custom-row">
         <span class="custom-prefix">NT$</span>
         <input class="custom-input" type="number" id="custom-input" placeholder="自訂金額" oninput="onCustomInput()" />
       </div>
@@ -577,6 +664,20 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   </div>
 </div>
 
+<div class="modal-wrap" id="table-modal-wrap" onclick="handleTableWrapClick(event)">
+  <div class="modal add-modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-ornament">✦ 桌次賓客名單 ✦</div>
+      <div class="modal-name" id="tm-title" style="font-size:20px;"></div>
+      <div class="modal-meta" id="tm-meta"></div>
+    </div>
+    <div class="modal-body" id="tm-body" style="padding-bottom:4px; max-height:52vh; overflow-y:auto;"></div>
+    <div class="modal-footer" style="margin-top:20px;">
+      <button class="btn-cancel" onclick="closeTableModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════
 // Cloudflare Worker proxy — GAS 網址和 token 都藏在 Worker 裡，外部看不到
@@ -609,8 +710,30 @@ function showToast(msg, type='ok', duration=3000) {
   toastTimer = setTimeout(() => { t.className = ''; }, duration);
 }
 
+// ── 收禮金格子顯示開關 ─────────────────────────────
+let showGift = localStorage.getItem('showGift') === '1'; // 預設隱藏
+function applyGiftVisibility() {
+  const grid   = document.getElementById('amount-grid');
+  const row    = document.getElementById('custom-row');
+  const label  = document.getElementById('gift-section-label');
+  const on     = showGift;
+  if (grid)  grid.style.display  = on ? 'grid' : 'none';
+  if (row)   row.style.display   = on ? 'flex' : 'none';
+  if (label) label.style.display = on ? 'flex' : 'none';
+  const toggleEl = document.getElementById('gift-toggle');
+  if (toggleEl) toggleEl.classList.toggle('on', on);
+  const textEl = document.getElementById('gift-toggle-text');
+  if (textEl) textEl.textContent = on ? '顯示收禮金' : '隱藏收禮金';
+}
+function toggleGiftVisibility() {
+  showGift = !showGift;
+  localStorage.setItem('showGift', showGift ? '1' : '0');
+  applyGiftVisibility();
+}
+
 // ── 載入 ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  applyGiftVisibility();
   if (sessionStorage.getItem('invited') === '1') loadAll();
 });
 
@@ -711,11 +834,34 @@ async function syncOne(guestId) {
 
 // ── 統計 ─────────────────────────────────────────
 function refreshStats() {
-  const all = allGuests();
-  const chk = all.filter(g => rec(g.id).checkin).length;
-  document.getElementById('s-total').textContent   = all.length;
-  document.getElementById('s-checked').textContent = chk;
-  document.getElementById('s-pending').textContent = all.length - chk;
+  const totals = { checked:0, total:0,
+                    groomChecked:0, brideChecked:0,
+                    cakeTotal:0, cakeCollected:0,
+                    groomCake:0, brideCake:0 };
+
+  GROUPS.forEach(g => {
+    const isGroom = GROOM_GROUPS.includes(g.name);
+    g.guests.forEach(gu => {
+      const seats = gu.seats || 1;
+      const r = rec(gu.id);
+      totals.total += seats;
+      if (r.checkin) {
+        totals.checked += seats;
+        if (isGroom) totals.groomChecked += seats; else totals.brideChecked += seats;
+      }
+      // 喜餅以「代表人」為單位計算，不論攜伴人數
+      totals.cakeTotal += 1;
+      if (r.cake) {
+        totals.cakeCollected += 1;
+        if (isGroom) totals.groomCake += 1; else totals.brideCake += 1;
+      }
+    });
+  });
+
+  document.getElementById('s-checked-total').textContent = `${totals.checked} / ${totals.total}`;
+  document.getElementById('s-checked-sides').textContent = `新郎 ${totals.groomChecked} / 新娘 ${totals.brideChecked}`;
+  document.getElementById('s-cake-total').textContent    = `${totals.cakeCollected} / ${totals.cakeTotal}`;
+  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCake} / 新娘 ${totals.brideCake}`;
 }
 
 // ── 首頁分組 ──────────────────────────────────────
@@ -823,6 +969,127 @@ async function syncDeleteRecord(id) {
 
 function goHome() {
   document.getElementById('list-page').classList.remove('active');
+  document.getElementById('home').classList.add('active');
+  renderGroups(); refreshStats();
+}
+
+// ── 桌次報到總覽 ──────────────────────────────────
+function getTableData() {
+  const all = allGuests();
+  const map = {};
+  all.forEach(gu => {
+    const key = (gu.table && gu.table.trim()) ? gu.table.trim() : '未分桌';
+    if (!map[key]) map[key] = { table:key, totalSeats:0, checkedSeats:0 };
+    const seats = gu.seats || 1;
+    map[key].totalSeats += seats;
+    if (rec(gu.id).checkin) map[key].checkedSeats += seats;
+  });
+  return Object.values(map);
+}
+
+// 排序邏輯：主桌最上（獨佔一整列）→ 依桌號左偶右奇成對排列 → 無法辨識桌號的放最後
+function orderTables(data) {
+  const mainTables = [];
+  const numbered = [];
+  const others = [];
+
+  data.forEach(t => {
+    if (t.table.includes('主桌') || t.table.includes('主 桌')) {
+      mainTables.push(t);
+      return;
+    }
+    const m = t.table.match(/\d+/);
+    if (m) { numbered.push({ ...t, num: parseInt(m[0], 10) }); }
+    else   { others.push(t); }
+  });
+
+  const evens = numbered.filter(t => t.num % 2 === 0).sort((a,b) => a.num - b.num);
+  const odds  = numbered.filter(t => t.num % 2 === 1).sort((a,b) => a.num - b.num);
+
+  const paired = [];
+  const maxLen = Math.max(evens.length, odds.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (evens[i]) paired.push(evens[i]);
+    if (odds[i])  paired.push(odds[i]);
+  }
+
+  others.sort((a,b) => a.table.localeCompare(b.table, 'zh-Hant', {numeric:true}));
+
+  return { mainTables, paired, others };
+}
+
+function renderTables() {
+  const data = getTableData();
+  const totalAll   = data.reduce((s,t) => s + t.totalSeats, 0);
+  const checkedAll = data.reduce((s,t) => s + t.checkedSeats, 0);
+  document.getElementById('tables-count').textContent = `${checkedAll} / ${totalAll} 已報到`;
+
+  const { mainTables, paired, others } = orderTables(data);
+
+  function cardHTML(t, full) {
+    const icons = [];
+    for (let i = 0; i < t.totalSeats; i++) {
+      icons.push(`<div class="seat-icon ${i < t.checkedSeats ? 'checked' : 'pending'}"></div>`);
+    }
+    const safeKey = String(t.table).replace(/"/g, '&quot;');
+    return `<div class="table-card${full ? ' full' : ''}" data-table="${safeKey}">
+      <div class="table-card-head">
+        <span class="table-card-name">🪑 ${t.table}</span>
+        <span class="table-card-ratio"><span class="r-ok">${t.checkedSeats}</span> / ${t.totalSeats} 位</span>
+      </div>
+      <div class="seat-icons-row">${icons.join('')}</div>
+    </div>`;
+  }
+
+  const html =
+    mainTables.map(t => cardHTML(t, true)).join('') +
+    paired.map(t => cardHTML(t, false)).join('') +
+    others.map(t => cardHTML(t, true)).join('');
+
+  const gridEl = document.getElementById('tables-grid');
+  gridEl.innerHTML =
+    html || '<div class="table-card full" style="text-align:center;color:var(--text-light);font-size:13px;cursor:default;">尚無桌次資料</div>';
+
+  gridEl.querySelectorAll('.table-card[data-table]').forEach(el => {
+    el.addEventListener('click', () => showTableGuestList(el.dataset.table));
+  });
+}
+
+// 點桌卡 → 顯示該桌所有賓客名單（含攜伴人數與報到狀態）
+function showTableGuestList(tableKey) {
+  const list = allGuests().filter(gu => {
+    const key = (gu.table && gu.table.trim()) ? gu.table.trim() : '未分桌';
+    return key === tableKey;
+  });
+  const totalSeats   = list.reduce((s,gu) => s + (gu.seats || 1), 0);
+  const checkedSeats = list.reduce((s,gu) => s + (rec(gu.id).checkin ? (gu.seats || 1) : 0), 0);
+
+  document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
+  document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已報到 ・ 共 ${list.length} 組賓客`;
+
+  document.getElementById('tm-body').innerHTML = list.map(gu => {
+    const r = rec(gu.id);
+    const seats = gu.seats || 1;
+    return `<div class="tm-row" onclick="closeTableModal(); openModal(${gu.id});">
+      <span class="tm-dot ${r.checkin ? 'on' : ''}"></span>
+      <span class="tm-name">${gu.name}</span>
+      <span class="tm-seats">${seats} 位${seats > 1 ? '（含攜伴）' : ''}</span>
+    </div>`;
+  }).join('') || '<div style="padding:20px 4px;text-align:center;color:var(--text-light);font-size:13px;">此桌尚無賓客資料</div>';
+
+  document.getElementById('table-modal-wrap').classList.add('open');
+}
+function closeTableModal() { document.getElementById('table-modal-wrap').classList.remove('open'); }
+function handleTableWrapClick(e) { if (e.target === document.getElementById('table-modal-wrap')) closeTableModal(); }
+
+function showTablesPage() {
+  renderTables();
+  document.getElementById('home').classList.remove('active');
+  document.getElementById('tables-page').classList.add('active');
+}
+
+function goHomeFromTables() {
+  document.getElementById('tables-page').classList.remove('active');
   document.getElementById('home').classList.add('active');
   renderGroups(); refreshStats();
 }
