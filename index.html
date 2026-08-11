@@ -267,6 +267,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:10;
 }
 .modal-ornament { font-family:'Cormorant Garamond',serif; font-size:11px; color:var(--gold); letter-spacing:5px; margin-bottom:5px; }
+.name-caption { font-size:9px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; margin-bottom:4px; }
 .modal-name { font-family:'Montserrat',sans-serif; font-size:24px; font-weight:300; color:var(--text); letter-spacing:.06em; }
 .modal-meta { font-size:12px; color:var(--text-mid); margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; }
 .meta-pill { background:var(--cream2); border-radius:20px; padding:3px 11px; font-size:11px; }
@@ -369,6 +370,16 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .add-input:focus { border-color:var(--gold-light); background:var(--white); }
 .add-input::placeholder { color:var(--text-light); }
+.add-hint { font-size:10.5px; color:var(--text-light); margin-top:5px; line-height:1.5; }
+
+/* ── 喜餅數量控制 ────────────────────────────────── */
+.cakeqty-row {
+  display:flex; align-items:center; gap:10px;
+  background:rgba(255,255,255,.85); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:10px 14px; margin:-3px 0 20px;
+  transition:opacity .15s;
+}
+.cakeqty-row.disabled { opacity:.4; pointer-events:none; }
 
 /* ── LOADING ────────────────────────────────────── */
 #loading-overlay {
@@ -544,6 +555,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <div class="stat-line2" id="s-cake-sides">—</div>
       </div>
     </div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到大名所攜同出席之總人數；喜餅則以「報到大名」為單位計算，不論攜伴人數</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -593,6 +605,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-ornament">✦ 賓客登記 ✦</div>
+      <div class="name-caption">報到大名</div>
       <div class="modal-name" id="m-name"></div>
       <div class="modal-meta" id="m-meta"></div>
       <div class="modal-updated" id="m-updated"></div>
@@ -604,13 +617,18 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <input class="table-edit-input" id="edit-table" placeholder="輸入桌次" />
       </div>
       <div class="edit-row">
-        <span class="edit-label">👥 出席人數</span>
+        <span class="edit-label">👥 賓客人數（含攜伴）</span>
         <div class="seat-ctrl">
           <button class="seat-btn" onclick="changeSeat(-1)">−</button>
           <span class="seat-num" id="seat-display">1</span>
           <button class="seat-btn" onclick="changeSeat(1)">＋</button>
         </div>
       </div>
+      <div class="table-edit-row">
+        <span class="table-edit-label">🧧 紅包編號</span>
+        <input class="table-edit-input" type="number" id="edit-envno" placeholder="輸入編號" inputmode="numeric" />
+      </div>
+      <div class="add-hint" style="margin:-14px 0 20px;">＊紅包以「報到大名」為單位，一組登記僅一份</div>
       <div class="section-label" id="gift-section-label">禮金金額</div>
       <div class="amount-grid" id="amount-grid"></div>
       <div class="custom-row" id="custom-row">
@@ -626,6 +644,14 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
           <span class="toggle-text">✅ &nbsp;完成報到</span>
           <div class="toggle-circle" id="chk-checkin">✓</div>
+        </div>
+      </div>
+      <div class="cakeqty-row" id="cakeqty-row">
+        <span class="edit-label">🎂 喜餅數量</span>
+        <div class="seat-ctrl">
+          <button class="seat-btn" onclick="changeCakeQty(-1)">−</button>
+          <span class="seat-num" id="cakeqty-display">1</span>
+          <button class="seat-btn" onclick="changeCakeQty(1)">＋</button>
         </div>
       </div>
     </div>
@@ -645,16 +671,18 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
     </div>
     <div class="modal-body" style="padding-bottom:0;">
       <div class="add-field">
-        <label class="add-label">姓名</label>
-        <input class="add-input" id="add-name" placeholder="賓客姓名" />
+        <label class="add-label">報到大名</label>
+        <input class="add-input" id="add-name" placeholder="請填寫報到時使用之姓名" />
+        <div class="add-hint">此為現場報到之代表人姓名（一組登記為一筆資料）</div>
       </div>
       <div class="add-field">
         <label class="add-label">桌次</label>
         <input class="add-input" id="add-table" placeholder="例：A3" />
       </div>
       <div class="add-field">
-        <label class="add-label">出席人數</label>
+        <label class="add-label">賓客人數（含攜伴）</label>
         <input class="add-input" type="number" id="add-seats" placeholder="1" min="1" value="1" />
+        <div class="add-hint">請填寫此組報到之總人數，包含本人與所有攜伴人數</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
@@ -683,20 +711,27 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 // Cloudflare Worker proxy — GAS 網址和 token 都藏在 Worker 裡，外部看不到
 const GAS_URL = 'https://wedding-proxy.wedding-proxy.workers.dev';
 
-// ✏️ 新郎方分組名稱（和 Google Sheet A 欄一致）
-const GROOM_GROUPS = ['新郎親戚','新郎大學同學','乖乖家族','奧福班'];
+// ✏️ 判斷新郎／新娘方：只要分組名稱包含「新郎」兩個字，就歸類到新郎方（首頁左側）；
+// 包含「新娘」則歸類到新娘方（首頁右側）；兩者皆無時預設歸類到新娘方（右側）。
+// 不需再手動維護分組名稱清單，新增分組時只要名稱中含「新郎」或「新娘」即可自動歸邊。
+function isGroomGroup(name) {
+  return typeof name === 'string' && name.includes('新郎');
+}
+function isBrideGroup(name) {
+  return typeof name === 'string' && name.includes('新娘');
+}
 
 const AMOUNTS = [2000,2200,2600,3000,3200,3600,6000,6600,8000];
 
 let GROUPS = [];
 const records = {};
 let curGuestId = null, curGroupId = null;
-let selAmt = null, curSeats = 1, togState = {cake:false,checkin:false};
+let selAmt = null, curSeats = 1, curCakeQty = 1, togState = {cake:false,checkin:false};
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
 function rec(id) {
-  if (!records[id]) records[id] = {amount:null,cake:false,checkin:false,updatedAt:null};
+  if (!records[id]) records[id] = {amount:null,cake:false,cakeQty:0,checkin:false,envNo:null,updatedAt:null};
   return records[id];
 }
 
@@ -757,7 +792,9 @@ async function loadAll() {
         records[id] = {
           amount: r.amount ? Number(r.amount) : null,
           cake: r.cake === '是',
+          cakeQty: r.cakeQty ? Number(r.cakeQty) : 0,
           checkin: r.checkin === '是',
+          envNo: (r.envNo !== undefined && r.envNo !== '' && r.envNo !== null) ? Number(r.envNo) : null,
           updatedAt: r.updatedAt || null
         };
         // id >= 9000 是現場新增的賓客，還原進對應分組
@@ -805,7 +842,9 @@ async function syncOne(guestId) {
     const payload = {
       id: gu.id, name: gu.name, group: gp ? gp.name : '',
       table: gu.table, seats: gu.seats,
-      amount: r.amount || 0, cake: r.cake ? 1 : 0, checkin: r.checkin ? 1 : 0
+      amount: (r.amount !== null && r.amount !== undefined && r.amount !== '') ? r.amount : '',
+      cake: r.cake ? 1 : 0, cakeQty: r.cakeQty || 0,
+      checkin: r.checkin ? 1 : 0, envNo: (r.envNo !== null && r.envNo !== undefined) ? r.envNo : ''
     };
 
     // Step1: no-cors POST 寫入資料
@@ -837,10 +876,11 @@ function refreshStats() {
   const totals = { checked:0, total:0,
                     groomChecked:0, brideChecked:0,
                     cakeTotal:0, cakeCollected:0,
-                    groomCake:0, brideCake:0 };
+                    groomCake:0, brideCake:0,
+                    cakeQtyTotal:0 };
 
   GROUPS.forEach(g => {
-    const isGroom = GROOM_GROUPS.includes(g.name);
+    const isGroom = isGroomGroup(g.name);
     g.guests.forEach(gu => {
       const seats = gu.seats || 1;
       const r = rec(gu.id);
@@ -849,19 +889,21 @@ function refreshStats() {
         totals.checked += seats;
         if (isGroom) totals.groomChecked += seats; else totals.brideChecked += seats;
       }
-      // 喜餅以「代表人」為單位計算，不論攜伴人數
+      // 喜餅「是否領取」以「報到大名（代表人）」為單位計算，不論攜伴人數
       totals.cakeTotal += 1;
       if (r.cake) {
         totals.cakeCollected += 1;
         if (isGroom) totals.groomCake += 1; else totals.brideCake += 1;
       }
+      // 喜餅數量另計：實際發出的喜餅盒數加總
+      totals.cakeQtyTotal += (r.cakeQty || 0);
     });
   });
 
   document.getElementById('s-checked-total').textContent = `${totals.checked} / ${totals.total}`;
   document.getElementById('s-checked-sides').textContent = `新郎 ${totals.groomChecked} / 新娘 ${totals.brideChecked}`;
   document.getElementById('s-cake-total').textContent    = `${totals.cakeCollected} / ${totals.cakeTotal}`;
-  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCake} / 新娘 ${totals.brideCake}`;
+  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCake} / 新娘 ${totals.brideCake} ・ 共發出 ${totals.cakeQtyTotal} 份`;
 }
 
 // ── 首頁分組 ──────────────────────────────────────
@@ -885,7 +927,7 @@ function renderGroups() {
         <span class="badge badge-count">共 ${g.guests.length} 位賓客</span>
         ${g.guests.length - chk > 0 ? `<span class="badge badge-pending">⏳ 尚未報到 ${g.guests.length - chk} 位</span>` : ''}
       </div>`;
-    (GROOM_GROUPS.includes(g.name) ? groomEl : brideEl).appendChild(card);
+    (isGroomGroup(g.name) ? groomEl : brideEl).appendChild(card);
   });
 
   if (!groomEl.children.length) groomEl.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:10px;">尚無分組</div>';
@@ -928,8 +970,10 @@ function renderGuests(guests) {
         <div style="display:flex;align-items:center;gap:6px;">${deleteBtn}<div class="status-dot"></div></div>
       </div>
       <div class="guest-details">
-        <div class="detail-row"><span class="detail-label">人數</span><span class="detail-val">${gu.seats} 位</span></div>
+        <div class="detail-row"><span class="detail-label">人數（含攜伴）</span><span class="detail-val">${gu.seats} 位</span></div>
         <div class="detail-row"><span class="detail-label">桌次</span><span class="detail-val">${gu.table||'—'}</span></div>
+        <div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined) ? r.envNo : '未填'}</span></div>
+        <div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${r.cakeQty||0}` : '未領取'}</span></div>
       </div>
       <div class="guest-footer">
         <span class="status-tag ${r.checkin?'tag-checked':(isNew?'tag-new':'tag-pending')}">${statusTag}</span>
@@ -1065,7 +1109,7 @@ function showTableGuestList(tableKey) {
   const checkedSeats = list.reduce((s,gu) => s + (rec(gu.id).checkin ? (gu.seats || 1) : 0), 0);
 
   document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
-  document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已報到 ・ 共 ${list.length} 組賓客`;
+  document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已報到（含攜伴） ・ 共 ${list.length} 組賓客`;
 
   document.getElementById('tm-body').innerHTML = list.map(gu => {
     const r = rec(gu.id);
@@ -1101,17 +1145,19 @@ function openModal(gid) {
   const r  = rec(gid);
   selAmt   = r.amount;
   curSeats = gu.seats;
+  curCakeQty = r.cakeQty || gu.cakeQty || gu.seats || 1;
   togState = {cake:r.cake, checkin:r.checkin};
 
   document.getElementById('m-name').textContent = gu.name;
   document.getElementById('edit-table').value = gu.table || '';
   document.getElementById('seat-display').textContent = curSeats;
+  document.getElementById('edit-envno').value = (r.envNo !== null && r.envNo !== undefined) ? r.envNo : '';
 
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gid));
   document.getElementById('m-meta').innerHTML =
     `<span class="meta-pill">${gp.name}</span>` +
     `<span class="meta-pill">桌次 ${gu.table||'—'}</span>` +
-    `<span class="meta-pill">${gu.seats} 位</span>`;
+    `<span class="meta-pill">${gu.seats} 位（含攜伴）</span>`;
   document.getElementById('m-updated').textContent =
     r.updatedAt ? `上次更新：${r.updatedAt}` : '';
 
@@ -1119,6 +1165,7 @@ function openModal(gid) {
     `<button class="amt-btn${r.amount===a?' sel':''}" id="ab-${a}" onclick="pickAmt(${a})">NT$ ${a.toLocaleString()}</button>`
   ).join('');
   document.getElementById('custom-input').value = (r.amount && !AMOUNTS.includes(r.amount)) ? r.amount : '';
+  document.getElementById('cakeqty-display').textContent = curCakeQty;
   renderToggles();
   document.getElementById('modal-wrap').classList.add('open');
 }
@@ -1126,6 +1173,11 @@ function openModal(gid) {
 function changeSeat(delta) {
   curSeats = Math.max(1, curSeats + delta);
   document.getElementById('seat-display').textContent = curSeats;
+}
+
+function changeCakeQty(delta) {
+  curCakeQty = Math.max(0, curCakeQty + delta);
+  document.getElementById('cakeqty-display').textContent = curCakeQty;
 }
 
 function pickAmt(a) {
@@ -1145,6 +1197,8 @@ function renderToggles() {
     if(togState[k]) { row.classList.add('active-toggle'); chk.style.color='#fff'; }
     else { row.classList.remove('active-toggle'); chk.style.color='transparent'; }
   });
+  // 未勾選「領取喜餅」時，喜餅數量欄位停用（但仍顯示，避免資料混淆）
+  document.getElementById('cakeqty-row').classList.toggle('disabled', !togState.cake);
 }
 
 function save() {
@@ -1153,10 +1207,14 @@ function save() {
   gu.table = document.getElementById('edit-table').value.trim() || gu.table;
   gu.seats = curSeats;
 
+  const envnoRaw = document.getElementById('edit-envno').value.trim();
+
   const r = rec(curGuestId);
   r.amount    = selAmt;
   r.cake      = togState.cake;
+  r.cakeQty   = togState.cake ? curCakeQty : 0;
   r.checkin   = togState.checkin;
+  r.envNo     = envnoRaw !== '' ? Number(envnoRaw) : null;
   r.updatedAt = new Date().toLocaleString('zh-TW');
 
   closeModal();
@@ -1238,7 +1296,7 @@ async function saveNewGuest() {
       body: JSON.stringify({ records: [{
         id: newGuest.id, name: newGuest.name, group: g.name,
         table: newGuest.table, seats: newGuest.seats,
-        amount: 0, cake: 0, checkin: 0
+        amount: '', cake: 0, cakeQty: 0, checkin: 0, envNo: ''
       }]})
     });
     // no-cors 無法讀回應，等一下用 GET 驗證
