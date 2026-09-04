@@ -337,6 +337,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .toggle-item.active-toggle { background:var(--green-light); border-color:rgba(141,163,153,.5); }
 .toggle-text { font-size:14px; color:var(--text); }
 .toggle-qty { font-size:11.5px; color:var(--gold-dark); font-weight:600; margin-left:6px; }
+.toggle-item.static-row { cursor:default; }
+.toggle-item.static-row:hover { background:rgba(255,255,255,.85); border-color:var(--border); }
+.envno-input {
+  border:none; background:transparent; font-size:14px; font-weight:500;
+  color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
+  text-align:right; flex:1; margin-left:10px; min-width:0;
+}
 .toggle-item.hidden { display:none; }
 .toggle-circle {
   width:28px; height:28px; border-radius:50%; border:2px solid var(--gold-lighter);
@@ -638,15 +645,10 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
       <div class="guest-info-block" id="guest-info-block" style="display:none;"></div>
 
       <div class="section-label">登記項目</div>
-      <div class="table-edit-row">
-        <span class="table-edit-label">🧧 紅包編號</span>
-        <input class="table-edit-input" type="number" id="edit-envno" placeholder="輸入編號" inputmode="numeric" />
-      </div>
-      <div class="add-hint" style="margin:-14px 0 20px;">＊紅包以「報到大名」為單位，一組一份</div>
       <div class="toggle-list">
-        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
-          <span class="toggle-text">✅ &nbsp;已收禮</span>
-          <div class="toggle-circle" id="chk-checkin">✓</div>
+        <div class="toggle-item static-row">
+          <span class="toggle-text">🧧 &nbsp;紅包編號</span>
+          <input class="envno-input" type="text" id="edit-envno" placeholder="可填寫文字或多筆編號" />
         </div>
         <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
           <span class="toggle-text">🎁 &nbsp;領取喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
@@ -655,6 +657,10 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <div class="toggle-item" id="tog-jar" onclick="toggle('jar')">
           <span class="toggle-text">🏺 &nbsp;領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
           <div class="toggle-circle" id="chk-jar">✓</div>
+        </div>
+        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
+          <span class="toggle-text">✅ &nbsp;已到</span>
+          <div class="toggle-circle" id="chk-checkin">✓</div>
         </div>
       </div>
     </div>
@@ -835,7 +841,7 @@ async function loadAll() {
           jar: r.jar === '是',
           jarQty: r.jarQty ? Number(r.jarQty) : 0,
           checkin: r.checkin === '是',
-          envNo: (r.envNo !== undefined && r.envNo !== '' && r.envNo !== null) ? Number(r.envNo) : null,
+          envNo: (r.envNo !== undefined && r.envNo !== '' && r.envNo !== null) ? String(r.envNo) : null,
           updatedAt: r.updatedAt || null
         };
         // id >= 9000 是現場新增的賓客，還原進對應分組
@@ -1004,11 +1010,14 @@ function renderGuests(guests) {
     const tableDisp = gu.table ? formatTableDisplay(gu.table) : '—';
     const hasCake = !!(gu.cakeQty && gu.cakeQty > 0);
     const hasJar  = !!(gu.jarQty && gu.jarQty > 0);
-    const extraRows = [
-      hasCake       ? `<div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
-      hasJar        ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
+    const detailRows = [
+      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
+      `<div class="detail-row"><span class="detail-label">👥 賓客人數</span><span class="detail-val">${gu.seats} 位</span></div>`,
       gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 嬰兒</span><span class="detail-val">${gu.childChair}</span></div>` : '',
-      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : ''
+      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : '',
+      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
+      hasCake ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
+      hasJar  ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
     ].join('');
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
@@ -1016,10 +1025,7 @@ function renderGuests(guests) {
         <div style="display:flex;align-items:center;gap:6px;">${deleteBtn}<div class="status-dot"></div></div>
       </div>
       <div class="guest-details">
-        <div class="detail-row"><span class="detail-label">人數（含攜伴）</span><span class="detail-val">${gu.seats} 位</span></div>
-        <div class="detail-row"><span class="detail-label">桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>
-        <div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined) ? r.envNo : '未填'}</span></div>
-        ${extraRows}
+        ${detailRows}
       </div>
       <div class="guest-footer">
         <span class="status-tag ${r.checkin?'tag-checked':(isNew?'tag-new':'tag-pending')}">${statusTag}</span>
@@ -1377,7 +1383,7 @@ function save() {
   r.jar       = togState.jar;
   r.jarQty    = togState.jar ? (gu.jarQty || 0) : 0;
   r.checkin   = togState.checkin;
-  r.envNo     = envnoRaw !== '' ? Number(envnoRaw) : null;
+  r.envNo     = envnoRaw !== '' ? envnoRaw : null;
   r.updatedAt = new Date().toLocaleString('zh-TW');
 
   closeModal();
