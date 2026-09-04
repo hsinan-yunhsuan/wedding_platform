@@ -98,6 +98,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-card-ratio { font-size:12px; color:var(--text-mid); font-weight:500; }
 .table-card-ratio .r-ok { color:var(--green); }
 .seat-icons-row { display:flex; flex-wrap:wrap; gap:4px; }
+.table-card-extra { margin-top:8px; font-size:10.5px; color:var(--gold-dark); }
 .seat-icon {
   width:13px; height:13px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
@@ -620,15 +621,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
       <div class="modal-updated" id="m-updated"></div>
     </div>
     <div class="modal-body">
-      <div class="section-label">修改資訊</div>
+      <div class="section-label">賓客資訊</div>
       <div class="table-edit-row">
         <span class="table-edit-label">🪑 桌次</span>
         <input class="table-edit-input" id="edit-table" placeholder="例：A3 或 A3、A5" />
       </div>
       <div class="add-hint" style="margin:-14px 0 20px;">＊若此組賓客（含攜伴）分坐不同桌，請用「、」分隔桌號，並可標註各桌人數，例如：A3x2、A5x2（未標註人數將自動平均分配）</div>
-      <div class="section-label" id="guest-info-label" style="display:none;">賓客資訊</div>
-      <div class="guest-info-block" id="guest-info-block" style="display:none;"></div>
-      <div class="edit-row">
+      <div class="edit-row" style="margin-bottom:12px;">
         <span class="edit-label">👥 賓客人數（含攜伴）</span>
         <div class="seat-ctrl">
           <button class="seat-btn" onclick="changeSeat(-1)">−</button>
@@ -636,12 +635,14 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
           <button class="seat-btn" onclick="changeSeat(1)">＋</button>
         </div>
       </div>
+      <div class="guest-info-block" id="guest-info-block" style="display:none;"></div>
+
+      <div class="section-label">登記項目</div>
       <div class="table-edit-row">
         <span class="table-edit-label">🧧 紅包編號</span>
         <input class="table-edit-input" type="number" id="edit-envno" placeholder="輸入編號" inputmode="numeric" />
       </div>
       <div class="add-hint" style="margin:-14px 0 20px;">＊紅包以「報到大名」為單位，一組一份</div>
-      <div class="section-label">登記項目</div>
       <div class="toggle-list">
         <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
           <span class="toggle-text">✅ &nbsp;已收禮</span>
@@ -1006,8 +1007,8 @@ function renderGuests(guests) {
     const extraRows = [
       hasCake       ? `<div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
       hasJar        ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
-      gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 兒童椅</span><span class="detail-val">${gu.childChair}</span></div>` : '',
-      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食人數</span><span class="detail-val">${gu.vegQty} 位</span></div>` : ''
+      gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 嬰兒</span><span class="detail-val">${gu.childChair}</span></div>` : '',
+      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : ''
     ].join('');
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
@@ -1068,15 +1069,28 @@ function getTableData() {
   const map = {};
   all.forEach(gu => {
     const isChecked = rec(gu.id).checkin;
-    const assignments = parseTableAssignments(gu.table, gu.seats || 1);
+    const seats = gu.seats || 1;
+    const vegQty = gu.vegQty || 0;
+    const babyRaw = (gu.childChair || '').toString().trim();
+    // 嬰兒欄若為純數字則以該數字計算，否則有填寫即計為 1
+    const babyNum = babyRaw ? (parseInt(babyRaw) || 1) : 0;
+    const assignments = parseTableAssignments(gu.table, seats);
     assignments.forEach(a => {
       const key = a.table || '未分桌';
-      if (!map[key]) map[key] = { table:key, totalSeats:0, checkedSeats:0 };
+      if (!map[key]) map[key] = { table:key, totalSeats:0, checkedSeats:0, vegQty:0, babyQty:0 };
       map[key].totalSeats += a.seats;
       if (isChecked) map[key].checkedSeats += a.seats;
+      // 若同一組賓客分坐多桌，素食／嬰兒人數依座位比例分攤到各桌
+      const ratio = a.seats / seats;
+      map[key].vegQty  += vegQty  * ratio;
+      map[key].babyQty += babyNum * ratio;
     });
   });
-  return Object.values(map);
+  return Object.values(map).map(t => ({
+    ...t,
+    vegQty:  Math.round(t.vegQty),
+    babyQty: Math.round(t.babyQty)
+  }));
 }
 
 // 排序邏輯：主桌最上（獨佔一整列）→ 依桌號左偶右奇成對排列 → 無法辨識桌號的放最後
@@ -1124,12 +1138,17 @@ function renderTables() {
       icons.push(`<div class="seat-icon ${i < t.checkedSeats ? 'checked' : 'pending'}"></div>`);
     }
     const safeKey = String(t.table).replace(/"/g, '&quot;');
+    const extras = [];
+    if (t.babyQty > 0) extras.push(`🍼 嬰兒 ${t.babyQty}`);
+    if (t.vegQty  > 0) extras.push(`🥗 素食 ${t.vegQty}`);
+    const extraLine = extras.length ? `<div class="table-card-extra">${extras.join('　')}</div>` : '';
     return `<div class="table-card${full ? ' full' : ''}" data-table="${safeKey}">
       <div class="table-card-head">
         <span class="table-card-name">🪑 ${t.table}</span>
         <span class="table-card-ratio"><span class="r-ok">${t.checkedSeats}</span> / ${t.totalSeats} 位</span>
       </div>
       <div class="seat-icons-row">${icons.join('')}</div>
+      ${extraLine}
     </div>`;
   }
 
@@ -1309,19 +1328,16 @@ function openModal(gid) {
   document.getElementById('m-updated').textContent =
     r.updatedAt ? `上次更新：${r.updatedAt}` : '';
 
-  // 賓客資訊（兒童椅需求／備註）：唯讀，來自「賓客名單」分頁，此處僅顯示
+  // 賓客資訊（嬰兒／素食）：唯讀，來自「賓客名單」分頁，此處僅顯示
   const infoRows = [
-    gu.childChair ? `<div class="guest-info-row"><span class="gi-label">🍼 兒童椅</span><span class="gi-val">${gu.childChair}</span></div>` : '',
-    (gu.vegQty && gu.vegQty > 0) ? `<div class="guest-info-row"><span class="gi-label">🥗 素食人數</span><span class="gi-val">${gu.vegQty} 位</span></div>` : ''
+    gu.childChair ? `<div class="guest-info-row"><span class="gi-label">🍼 嬰兒</span><span class="gi-val">${gu.childChair}</span></div>` : '',
+    (gu.vegQty && gu.vegQty > 0) ? `<div class="guest-info-row"><span class="gi-label">🥗 素食</span><span class="gi-val">${gu.vegQty} 位</span></div>` : ''
   ].filter(Boolean).join('');
-  const infoLabelEl = document.getElementById('guest-info-label');
   const infoBlockEl = document.getElementById('guest-info-block');
   if (infoRows) {
     infoBlockEl.innerHTML = infoRows;
-    infoLabelEl.style.display = 'flex';
     infoBlockEl.style.display = 'flex';
   } else {
-    infoLabelEl.style.display = 'none';
     infoBlockEl.style.display = 'none';
   }
 
