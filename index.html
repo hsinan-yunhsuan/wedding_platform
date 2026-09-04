@@ -1006,8 +1006,8 @@ function renderGuests(guests) {
     const extraRows = [
       hasCake       ? `<div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
       hasJar        ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
-      gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 兒童椅需求</span><span class="detail-val">${gu.childChair}</span></div>` : '',
-      gu.note       ? `<div class="detail-row"><span class="detail-label">📝 備註</span><span class="detail-val">${gu.note}</span></div>` : ''
+      gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 兒童椅</span><span class="detail-val">${gu.childChair}</span></div>` : '',
+      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食人數</span><span class="detail-val">${gu.vegQty} 位</span></div>` : ''
     ].join('');
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
@@ -1311,8 +1311,8 @@ function openModal(gid) {
 
   // 賓客資訊（兒童椅需求／備註）：唯讀，來自「賓客名單」分頁，此處僅顯示
   const infoRows = [
-    gu.childChair ? `<div class="guest-info-row"><span class="gi-label">🍼 兒童椅需求</span><span class="gi-val">${gu.childChair}</span></div>` : '',
-    gu.note       ? `<div class="guest-info-row"><span class="gi-label">📝 備註</span><span class="gi-val">${gu.note}</span></div>` : ''
+    gu.childChair ? `<div class="guest-info-row"><span class="gi-label">🍼 兒童椅</span><span class="gi-val">${gu.childChair}</span></div>` : '',
+    (gu.vegQty && gu.vegQty > 0) ? `<div class="guest-info-row"><span class="gi-label">🥗 素食人數</span><span class="gi-val">${gu.vegQty} 位</span></div>` : ''
   ].filter(Boolean).join('');
   const infoLabelEl = document.getElementById('guest-info-label');
   const infoBlockEl = document.getElementById('guest-info-block');
