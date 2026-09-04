@@ -356,6 +356,8 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .toggle-item:hover { background:#FDF4E3; border-color:var(--gold-light); }
 .toggle-item.active-toggle { background:var(--green-light); border-color:rgba(141,163,153,.5); }
 .toggle-text { font-size:14px; color:var(--text); }
+.toggle-qty { font-size:11.5px; color:var(--gold-dark); font-weight:600; margin-left:6px; }
+.toggle-item.hidden { display:none; }
 .toggle-circle {
   width:28px; height:28px; border-radius:50%; border:2px solid var(--gold-lighter);
   display:flex; align-items:center; justify-content:center; font-size:13px; color:transparent; transition:all .15s;
@@ -399,15 +401,6 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .guest-info-row { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; }
 .guest-info-row .gi-label { color:var(--text-mid); flex-shrink:0; }
 .guest-info-row .gi-val { color:var(--text); font-weight:500; text-align:right; }
-
-/* ── 喜餅數量控制 ────────────────────────────────── */
-.cakeqty-row {
-  display:flex; align-items:center; gap:10px;
-  background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:10px 14px; margin:-3px 0 20px;
-  transition:opacity .15s;
-}
-.cakeqty-row.disabled { opacity:.4; pointer-events:none; }
 
 /* ── LOADING ────────────────────────────────────── */
 #loading-overlay {
@@ -578,12 +571,12 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <div class="stat-line2" id="s-checked-sides">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已領取喜餅賓客（不含攜伴）</div>
+        <div class="stat-label">已發放喜餅份數</div>
         <div class="stat-line1" id="s-cake-total">—</div>
         <div class="stat-line2" id="s-cake-sides">—</div>
       </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到大名所攜同出席之總人數；喜餅則以「報到大名」為單位計算，不論攜伴人數</div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到大名所攜同出席之總人數；喜餅則以「喜餅數量」（份數）合計，非以人頭計算</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -653,14 +646,14 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
       <div class="modal-updated" id="m-updated"></div>
     </div>
     <div class="modal-body">
-      <div class="section-label" id="guest-info-label" style="display:none;">賓客資訊</div>
-      <div class="guest-info-block" id="guest-info-block" style="display:none;"></div>
       <div class="section-label">修改資訊</div>
       <div class="table-edit-row">
         <span class="table-edit-label">🪑 桌次</span>
         <input class="table-edit-input" id="edit-table" placeholder="例：A3 或 A3、A5" />
       </div>
       <div class="add-hint" style="margin:-14px 0 20px;">＊若此組賓客（含攜伴）分坐不同桌，請用「、」分隔桌號，並可標註各桌人數，例如：A3x2、A5x2（未標註人數將自動平均分配）</div>
+      <div class="section-label" id="guest-info-label" style="display:none;">賓客資訊</div>
+      <div class="guest-info-block" id="guest-info-block" style="display:none;"></div>
       <div class="edit-row">
         <span class="edit-label">👥 賓客人數（含攜伴）</span>
         <div class="seat-ctrl">
@@ -682,33 +675,17 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
       </div>
       <div class="section-label">登記項目</div>
       <div class="toggle-list">
+        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
+          <span class="toggle-text">✅ &nbsp;已收禮</span>
+          <div class="toggle-circle" id="chk-checkin">✓</div>
+        </div>
         <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
-          <span class="toggle-text">🎁 &nbsp;領取喜餅</span>
+          <span class="toggle-text">🎁 &nbsp;領取喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
           <div class="toggle-circle" id="chk-cake">✓</div>
         </div>
         <div class="toggle-item" id="tog-jar" onclick="toggle('jar')">
-          <span class="toggle-text">🏺 &nbsp;領取喜宴甕</span>
+          <span class="toggle-text">🏺 &nbsp;領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
           <div class="toggle-circle" id="chk-jar">✓</div>
-        </div>
-        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
-          <span class="toggle-text">✅ &nbsp;完成報到</span>
-          <div class="toggle-circle" id="chk-checkin">✓</div>
-        </div>
-      </div>
-      <div class="cakeqty-row" id="cakeqty-row">
-        <span class="edit-label">🎂 喜餅數量</span>
-        <div class="seat-ctrl">
-          <button class="seat-btn" onclick="changeCakeQty(-1)">−</button>
-          <span class="seat-num" id="cakeqty-display">1</span>
-          <button class="seat-btn" onclick="changeCakeQty(1)">＋</button>
-        </div>
-      </div>
-      <div class="cakeqty-row" id="jarqty-row" style="margin-top:-14px;">
-        <span class="edit-label">🏺 喜宴甕數量</span>
-        <div class="seat-ctrl">
-          <button class="seat-btn" onclick="changeJarQty(-1)">−</button>
-          <span class="seat-num" id="jarqty-display">1</span>
-          <button class="seat-btn" onclick="changeJarQty(1)">＋</button>
         </div>
       </div>
     </div>
@@ -784,7 +761,7 @@ const AMOUNTS = [2000,2200,2600,3000,3200,3600,6000,6600,8000];
 let GROUPS = [];
 const records = {};
 let curGuestId = null, curGroupId = null;
-let selAmt = null, curSeats = 1, curCakeQty = 1, curJarQty = 1, togState = {cake:false,checkin:false,jar:false};
+let selAmt = null, curSeats = 1, togState = {cake:false,checkin:false,jar:false};
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
@@ -816,6 +793,7 @@ function parseTableAssignments(tableStr, totalSeats) {
     return { table: p, seats: null };
   });
 
+  // 剩餘可分配人數（若各桌指定人數總和已超過總人數，剩餘視為 0，不再強行灌水）
   const remaining = Math.max(seats - specifiedTotal, 0);
   if (unspecifiedIdx.length > 0) {
     const base = Math.floor(remaining / unspecifiedIdx.length);
@@ -823,10 +801,14 @@ function parseTableAssignments(tableStr, totalSeats) {
     unspecifiedIdx.forEach(idx => {
       let s = base + (extra > 0 ? 1 : 0);
       if (extra > 0) extra--;
-      assigned[idx].seats = Math.max(s, 1);
+      assigned[idx].seats = s; // 不再強制最少 1 位，避免總人數超出實際人數（分桌總數異常的根因）
     });
   }
-  return assigned;
+
+  // 濾除分配到 0 位的桌次（通常代表「人數」與桌次分段數量對不齊）；
+  // 若全部被濾除（極端邊界情況），至少保留第一桌以免此賓客憑空消失
+  const filtered = assigned.filter(a => a.seats > 0);
+  return filtered.length > 0 ? filtered : [{ table: assigned[0].table, seats }];
 }
 
 // 是否分坐多桌
@@ -990,9 +972,8 @@ async function syncOne(guestId) {
 function refreshStats() {
   const totals = { checked:0, total:0,
                     groomChecked:0, brideChecked:0,
-                    cakeTotal:0, cakeCollected:0,
-                    groomCake:0, brideCake:0,
-                    cakeQtyTotal:0 };
+                    cakeQtyExpected:0, cakeQtyGiven:0,
+                    groomCakeQty:0, brideCakeQty:0 };
 
   GROUPS.forEach(g => {
     const isGroom = isGroomGroup(g.name);
@@ -1004,21 +985,21 @@ function refreshStats() {
         totals.checked += seats;
         if (isGroom) totals.groomChecked += seats; else totals.brideChecked += seats;
       }
-      // 喜餅「是否領取」以「報到大名（代表人）」為單位計算，不論攜伴人數
-      totals.cakeTotal += 1;
+      // 喜餅數：以「喜餅數量」（份數）合計，非以人頭（賓客數）計算
+      const cakeQty = gu.cakeQty || 0;
+      totals.cakeQtyExpected += cakeQty;
       if (r.cake) {
-        totals.cakeCollected += 1;
-        if (isGroom) totals.groomCake += 1; else totals.brideCake += 1;
+        const givenQty = r.cakeQty || cakeQty;
+        totals.cakeQtyGiven += givenQty;
+        if (isGroom) totals.groomCakeQty += givenQty; else totals.brideCakeQty += givenQty;
       }
-      // 喜餅數量另計：實際發出的喜餅盒數加總
-      totals.cakeQtyTotal += (r.cakeQty || 0);
     });
   });
 
   document.getElementById('s-checked-total').textContent = `${totals.checked} / ${totals.total}`;
   document.getElementById('s-checked-sides').textContent = `新郎 ${totals.groomChecked} / 新娘 ${totals.brideChecked}`;
-  document.getElementById('s-cake-total').textContent    = `${totals.cakeCollected} / ${totals.cakeTotal}`;
-  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCake} / 新娘 ${totals.brideCake} ・ 共發出 ${totals.cakeQtyTotal} 份`;
+  document.getElementById('s-cake-total').textContent    = `${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`;
+  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCakeQty} 份 / 新娘 ${totals.brideCakeQty} 份`;
 }
 
 // ── 首頁分組 ──────────────────────────────────────
@@ -1073,15 +1054,19 @@ function renderGuests(guests) {
     const isNew = gu.isNew;
     let statusTag, cardClass;
     if (isNew)          { statusTag='🆕現場'; cardClass='is-new'; }
-    else if (r.checkin) { statusTag='✓已報到';    cardClass='is-checked'; }
-    else                { statusTag='未報到';        cardClass=''; }
+    else if (r.checkin) { statusTag='✓已到';    cardClass='is-checked'; }
+    else                { statusTag='未到';        cardClass=''; }
     const updatedLine = r.updatedAt ? `<span class="last-updated">${r.updatedAt}</span>` : '';
     const deleteBtn = isNew
       ? `<button class="del-btn" onclick="event.stopPropagation();deleteGuest(${gu.id})" title="刪除">✕</button>`
       : '';
     const split = isSplitTable(gu.table);
     const tableDisp = gu.table ? formatTableDisplay(gu.table) : '—';
+    const hasCake = !!(gu.cakeQty && gu.cakeQty > 0);
+    const hasJar  = !!(gu.jarQty && gu.jarQty > 0);
     const extraRows = [
+      hasCake       ? `<div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
+      hasJar        ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
       gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 兒童椅需求</span><span class="detail-val">${gu.childChair}</span></div>` : '',
       gu.note       ? `<div class="detail-row"><span class="detail-label">📝 備註</span><span class="detail-val">${gu.note}</span></div>` : ''
     ].join('');
@@ -1094,8 +1079,6 @@ function renderGuests(guests) {
         <div class="detail-row"><span class="detail-label">人數（含攜伴）</span><span class="detail-val">${gu.seats} 位</span></div>
         <div class="detail-row"><span class="detail-label">桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>
         <div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined) ? r.envNo : '未填'}</span></div>
-        <div class="detail-row"><span class="detail-label">🎂 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${r.cakeQty||0}` : '未領取'}</span></div>
-        <div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${r.jarQty||0}` : '未領取'}</span></div>
         ${extraRows}
       </div>
       <div class="guest-footer">
@@ -1237,14 +1220,21 @@ function showTableGuestList(tableKey) {
   const totalSeats   = list.reduce((s,x) => s + x.seatsHere, 0);
   const checkedSeats = list.reduce((s,x) => s + (rec(x.gu.id).checkin ? x.seatsHere : 0), 0);
 
+  // 若同一桌內出現重複姓名（常見於「舅舅」「阿姨」等以稱謂命名的賓客），
+  // 顯示其所屬分組作為副標，避免誤以為同一人被列出兩次
+  const nameCounts = {};
+  list.forEach(({gu}) => { nameCounts[gu.name] = (nameCounts[gu.name]||0) + 1; });
+
   document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
   document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已報到（含攜伴） ・ 共 ${list.length} 組賓客`;
 
   document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, split}) => {
     const r = rec(gu.id);
+    const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
+    const dupSub = nameCounts[gu.name] > 1 && gp ? `<span class="pending-sub">${gp.name}</span>` : '';
     return `<div class="tm-row" onclick="closeTableModal(); openModal(${gu.id});">
       <span class="tm-dot ${r.checkin ? 'on' : ''}"></span>
-      <span class="tm-name">${gu.name}${split ? '<span class="tm-split-tag">分桌</span>' : ''}</span>
+      <span class="tm-name">${gu.name}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
       <span class="tm-seats">${seatsHere} 位${split ? '（此桌）' : (seatsHere > 1 ? '（含攜伴）' : '')}</span>
     </div>`;
   }).join('') || '<div style="padding:20px 4px;text-align:center;color:var(--text-light);font-size:13px;">此桌尚無賓客資料</div>';
@@ -1293,8 +1283,8 @@ function pendingSectionHTML(icon, title, list) {
 function renderPendingPage() {
   const all = allGuests();
   const notCheckedIn     = all.filter(gu => !rec(gu.id).checkin);
-  const cakeNotCollected = all.filter(gu => !rec(gu.id).cake);
-  const jarNotCollected  = all.filter(gu => !rec(gu.id).jar);
+  const cakeNotCollected = all.filter(gu => gu.cakeQty && gu.cakeQty > 0 && !rec(gu.id).cake);
+  const jarNotCollected  = all.filter(gu => gu.jarQty  && gu.jarQty  > 0 && !rec(gu.id).jar);
 
   document.getElementById('pending-count').textContent = `共 ${all.length} 組賓客`;
   document.getElementById('pending-sections').innerHTML =
@@ -1322,9 +1312,17 @@ function openModal(gid) {
   const r  = rec(gid);
   selAmt   = r.amount;
   curSeats = gu.seats;
-  curCakeQty = r.cakeQty || gu.cakeQty || gu.seats || 1;
-  curJarQty  = r.jarQty  || gu.jarQty  || gu.seats || 1;
-  togState = {cake:r.cake, jar:r.jar, checkin:r.checkin};
+
+  // 喜餅／喜宴甕：只有「賓客名單」表中該欄位有填數量（>0）的賓客才顯示對應按鈕，
+  // 數量固定取自 Excel 來源，不提供現場調整
+  const hasCake = !!(gu.cakeQty && gu.cakeQty > 0);
+  const hasJar  = !!(gu.jarQty && gu.jarQty > 0);
+  togState = { cake: hasCake && r.cake, jar: hasJar && r.jar, checkin: r.checkin };
+
+  document.getElementById('tog-cake').classList.toggle('hidden', !hasCake);
+  document.getElementById('tog-jar').classList.toggle('hidden', !hasJar);
+  document.getElementById('cake-qty-label').textContent = hasCake ? `（共 ${gu.cakeQty} 份）` : '';
+  document.getElementById('jar-qty-label').textContent  = hasJar  ? `（共 ${gu.jarQty} 份）`  : '';
 
   document.getElementById('m-name').textContent = gu.name;
   document.getElementById('edit-table').value = gu.table || '';
@@ -1361,8 +1359,6 @@ function openModal(gid) {
     `<button class="amt-btn${r.amount===a?' sel':''}" id="ab-${a}" onclick="pickAmt(${a})">NT$ ${a.toLocaleString()}</button>`
   ).join('');
   document.getElementById('custom-input').value = (r.amount && !AMOUNTS.includes(r.amount)) ? r.amount : '';
-  document.getElementById('cakeqty-display').textContent = curCakeQty;
-  document.getElementById('jarqty-display').textContent = curJarQty;
   renderToggles();
   document.getElementById('modal-wrap').classList.add('open');
 }
@@ -1370,16 +1366,6 @@ function openModal(gid) {
 function changeSeat(delta) {
   curSeats = Math.max(1, curSeats + delta);
   document.getElementById('seat-display').textContent = curSeats;
-}
-
-function changeCakeQty(delta) {
-  curCakeQty = Math.max(0, curCakeQty + delta);
-  document.getElementById('cakeqty-display').textContent = curCakeQty;
-}
-
-function changeJarQty(delta) {
-  curJarQty = Math.max(0, curJarQty + delta);
-  document.getElementById('jarqty-display').textContent = curJarQty;
 }
 
 function pickAmt(a) {
@@ -1392,16 +1378,17 @@ function onCustomInput() {
   selAmt = isNaN(v) ? null : v;
   AMOUNTS.forEach(x => { const b=document.getElementById('ab-'+x); if(b) b.className='amt-btn'; });
 }
-function toggle(key) { togState[key]=!togState[key]; renderToggles(); }
+function toggle(key) {
+  // 沒有喜餅／喜宴甕份數的賓客，該按鈕已隱藏，點擊無效
+  if ((key === 'cake' || key === 'jar') && document.getElementById('tog-'+key).classList.contains('hidden')) return;
+  togState[key]=!togState[key]; renderToggles();
+}
 function renderToggles() {
   ['cake','jar','checkin'].forEach(k => {
     const row=document.getElementById('tog-'+k), chk=document.getElementById('chk-'+k);
     if(togState[k]) { row.classList.add('active-toggle'); chk.style.color='#fff'; }
     else { row.classList.remove('active-toggle'); chk.style.color='transparent'; }
   });
-  // 未勾選「領取喜餅／喜宴甕」時，對應數量欄位停用（但仍顯示，避免資料混淆）
-  document.getElementById('cakeqty-row').classList.toggle('disabled', !togState.cake);
-  document.getElementById('jarqty-row').classList.toggle('disabled', !togState.jar);
 }
 
 function save() {
@@ -1415,9 +1402,9 @@ function save() {
   const r = rec(curGuestId);
   r.amount    = selAmt;
   r.cake      = togState.cake;
-  r.cakeQty   = togState.cake ? curCakeQty : 0;
+  r.cakeQty   = togState.cake ? (gu.cakeQty || 0) : 0;
   r.jar       = togState.jar;
-  r.jarQty    = togState.jar ? curJarQty : 0;
+  r.jarQty    = togState.jar ? (gu.jarQty || 0) : 0;
   r.checkin   = togState.checkin;
   r.envNo     = envnoRaw !== '' ? Number(envnoRaw) : null;
   r.updatedAt = new Date().toLocaleString('zh-TW');
@@ -1488,7 +1475,7 @@ async function saveNewGuest() {
   if (!g) return;
 
   newGuestCounter++;
-  const newGuest = {id:newGuestCounter, name, table, seats, isNew:true};
+  const newGuest = {id:newGuestCounter, name, table, seats, isNew:true, cakeQty:seats, jarQty:seats};
   g.guests.push(newGuest);
   closeAddModal();
   renderGuests(g.guests);
