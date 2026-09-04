@@ -58,7 +58,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 
 /* ── STATS ─────────────────────────────────────── */
 .stats-section { padding:20px var(--pad) 0; }
-.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .stat-card {
   background:rgba(255,255,255,.9); border:1px solid var(--border);
   border-radius:var(--radius); padding:18px 12px 16px;
@@ -72,20 +72,10 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 @media (max-width:640px) { .stat-num.frac { font-size:19px; } }
 .stat-line1 { font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:600; color:var(--gold); line-height:1.15; }
 .stat-card.green-num .stat-line1 { color:var(--green); }
-.stat-line2 { font-size:11px; color:var(--text-mid); margin-top:7px; font-weight:500; letter-spacing:.02em; }
-@media (max-width:640px) { .stat-line1 { font-size:21px; } .stat-line2 { font-size:10px; } }
-
-/* ── GIFT TOGGLE ───────────────────────────────── */
-.gift-toggle {
-  margin-top:8px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;
-  background:rgba(255,255,255,.7); border:1px solid var(--border); border-radius:20px;
-  padding:5px 11px; font-size:11px; color:var(--text-mid); user-select:none;
-  transition:all .15s; font-family:'Noto Sans TC',sans-serif;
-}
-.gift-toggle:hover { background:var(--cream2); }
-.gift-toggle-dot { width:9px; height:9px; border-radius:50%; background:var(--cream3); transition:all .15s; flex-shrink:0; }
-.gift-toggle.on .gift-toggle-dot { background:var(--gold); box-shadow:0 0 0 3px var(--gold-lighter); }
-.gift-toggle.on { border-color:var(--gold-light); color:var(--gold-dark); }
+@media (max-width:640px) { .stat-line1 { font-size:21px; } }
+.stat-card-click { cursor:pointer; }
+.stat-card-click:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(180,130,50,.18); border-color:var(--gold-light); }
+.stat-card-click:active { transform:translateY(0); }
 
 /* ── QUICK NAV ─────────────────────────────────── */
 .quick-nav { padding:14px var(--pad) 0; }
@@ -142,7 +132,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   padding:0 var(--pad); margin-top:-6px;
 }
 
-/* ── PENDING OVERVIEW PAGE ─────────────────────── */
+/* ── PENDING OVERVIEW PAGE / CATEGORY PAGE ──────── */
 .pending-section-head { padding:20px var(--pad) 10px; display:flex; align-items:center; gap:12px; }
 .pending-section-title { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:400; color:var(--gold); letter-spacing:.03em; white-space:nowrap; }
 .pending-section-count { font-size:11px; color:var(--text-light); }
@@ -152,6 +142,14 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .pending-empty { padding:16px 4px; text-align:center; color:var(--text-light); font-size:12.5px; }
 .pending-sub { font-size:10.5px; color:var(--text-light); margin-left:6px; }
+.cat-sub-label {
+  font-size:10.5px; font-weight:600; color:var(--text-mid); letter-spacing:.05em;
+  margin:12px var(--pad) 6px; text-transform:uppercase;
+}
+.cat-sub-label.done { color:var(--green); }
+.cat-sub-label:first-of-type { margin-top:2px; }
+.cat-collapsible { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; padding:6px 2px; }
+.cat-collapse-arrow { font-size:9px; color:var(--green); transition:transform .15s; }
 
 /* ── DIVIDER ───────────────────────────────────── */
 .divider-section { padding:24px var(--pad) 16px; display:flex; align-items:center; gap:14px; }
@@ -328,25 +326,6 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   width:80px; text-align:right;
 }
 
-.amount-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:10px; }
-.amt-btn {
-  background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:12px 6px; font-size:13px; font-weight:500;
-  color:var(--text-mid); cursor:pointer; transition:all .15s; font-family:'Noto Sans TC',sans-serif;
-}
-.amt-btn:hover { background:#FDF4E3; border-color:var(--gold-light); color:var(--gold-dark); }
-.amt-btn.sel { background:var(--gold-btn); border-color:var(--gold); color:#fff; box-shadow:0 3px 12px rgba(180,130,50,.3); }
-
-.custom-row {
-  display:flex; align-items:center; gap:10px;
-  background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:20px; transition:border-color .15s;
-}
-.custom-row:focus-within { border-color:var(--gold-light); background:var(--white); }
-.custom-prefix { font-size:13px; color:var(--text-mid); font-weight:500; white-space:nowrap; }
-.custom-input { flex:1; border:none; background:transparent; font-size:15px; font-weight:500; color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif; }
-.custom-input::placeholder { color:var(--text-light); font-weight:400; }
-
 .toggle-list { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
 .toggle-item {
   display:flex; align-items:center; justify-content:space-between;
@@ -423,6 +402,8 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   .header-right { display:block; text-align:center; margin-top:6px; }
   .header-brand { font-size:17px; }
   .stats-grid { gap:8px; }
+  .stat-card { padding:14px 6px 12px; }
+  .stat-label { font-size:8px; letter-spacing:.1em; margin-bottom:6px; }
   .stat-num { font-size:30px; }
   .sides-wrapper { grid-template-columns:1fr 1fr; gap:8px; padding:0 var(--pad) 24px; }
   .side-col { gap:7px; }
@@ -437,13 +418,11 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   .badge { font-size:9px; padding:2px 7px; }
   .modal { border-radius:var(--radius-lg); }
   .modal-name { font-size:20px; }
-  .amount-grid { grid-template-columns:repeat(3,1fr); }
   .modal-footer { gap:8px; }
 }
 @media (max-width:400px) {
   .guest-grid { grid-template-columns:1fr 1fr; }
   .guest-name { font-size:14px; }
-  .amount-grid { grid-template-columns:repeat(2,1fr); }
 }
 
 ::-webkit-scrollbar { width:5px; }
@@ -554,10 +533,6 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   <div class="header-right">
     <div class="header-date">2026年11月14日</div>
     <div class="header-ornament"> — ♡ — </div>
-    <div class="gift-toggle" id="gift-toggle" onclick="toggleGiftVisibility()">
-      <span class="gift-toggle-dot"></span>
-      <span id="gift-toggle-text">顯示收禮金</span>
-    </div>
   </div>
 </header>
 
@@ -565,24 +540,23 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 <div id="home" class="page active">
   <div class="stats-section">
     <div class="stats-grid">
-      <div class="stat-card green-num">
-        <div class="stat-label">已報到賓客（含攜伴）</div>
+      <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
+        <div class="stat-label">已到</div>
         <div class="stat-line1" id="s-checked-total">—</div>
-        <div class="stat-line2" id="s-checked-sides">—</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">已發放喜餅份數</div>
+      <div class="stat-card stat-card-click" onclick="showCategoryPage('cake')">
+        <div class="stat-label">已領取喜餅</div>
         <div class="stat-line1" id="s-cake-total">—</div>
-        <div class="stat-line2" id="s-cake-sides">—</div>
+      </div>
+      <div class="stat-card stat-card-click" onclick="showCategoryPage('jar')">
+        <div class="stat-label">已領取喜宴甕</div>
+        <div class="stat-line1" id="s-jar-total">—</div>
       </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到大名所攜同出席之總人數；喜餅則以「喜餅數量」（份數）合計，非以人頭計算</div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到人所攜同出席之總人數；喜餅／喜宴甕＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
-  </div>
-  <div class="quick-nav" style="padding-top:10px;">
-    <button class="quick-nav-btn" onclick="showPendingPage()">📋&nbsp; 查看未完成事項總覽</button>
   </div>
   <div class="divider-section">
     <div class="divider-line"></div>
@@ -620,19 +594,19 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
     <div class="list-header-title">🪑 桌次報到總覽</div>
     <div class="list-header-count" id="tables-count"></div>
   </div>
-  <div class="tables-summary">綠色圓點為已報到賓客（含攜伴）</div>
+  <div class="tables-summary">綠色圓點為已到賓客（含攜伴）</div>
   <div id="tables-grid" class="tables-grid-layout"></div>
 </div>
 
-<!-- PENDING OVERVIEW -->
-<div id="pending-page" class="page">
+<!-- CATEGORY DETAIL（已到／已領取喜餅／已領取喜宴甕，依分組列出未領取／已領取名單） -->
+<div id="category-page" class="page">
   <div class="list-header">
-    <button class="back-btn" onclick="goHomeFromPending()">← 返回</button>
-    <div class="list-header-title">📋 未完成事項總覽</div>
-    <div class="list-header-count" id="pending-count"></div>
+    <button class="back-btn" onclick="goHomeFromCategory()">← 返回</button>
+    <div class="list-header-title" id="category-title"></div>
+    <div class="list-header-count" id="category-count"></div>
   </div>
   <div class="tables-summary">點擊姓名可直接開啟登記視窗進行更新</div>
-  <div id="pending-sections" style="padding-bottom:36px;"></div>
+  <div id="category-sections" style="padding-bottom:36px;"></div>
 </div>
 
 <!-- 登記 MODAL -->
@@ -666,13 +640,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
         <span class="table-edit-label">🧧 紅包編號</span>
         <input class="table-edit-input" type="number" id="edit-envno" placeholder="輸入編號" inputmode="numeric" />
       </div>
-      <div class="add-hint" style="margin:-14px 0 20px;">＊紅包以「報到大名」為單位，一組登記僅一份</div>
-      <div class="section-label" id="gift-section-label">禮金金額</div>
-      <div class="amount-grid" id="amount-grid"></div>
-      <div class="custom-row" id="custom-row">
-        <span class="custom-prefix">NT$</span>
-        <input class="custom-input" type="number" id="custom-input" placeholder="自訂金額" oninput="onCustomInput()" />
-      </div>
+      <div class="add-hint" style="margin:-14px 0 20px;">＊紅包以「報到大名」為單位，一組一份</div>
       <div class="section-label">登記項目</div>
       <div class="toggle-list">
         <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
@@ -756,12 +724,10 @@ function isBrideGroup(name) {
   return typeof name === 'string' && name.includes('新娘');
 }
 
-const AMOUNTS = [2000,2200,2600,3000,3200,3600,6000,6600,8000];
-
 let GROUPS = [];
 const records = {};
-let curGuestId = null, curGroupId = null;
-let selAmt = null, curSeats = 1, togState = {cake:false,checkin:false,jar:false};
+let curGuestId = null, curGroupId = null, curCategory = null;
+let curSeats = 1, togState = {cake:false,checkin:false,jar:false};
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
@@ -839,30 +805,8 @@ function showToast(msg, type='ok', duration=3000) {
   toastTimer = setTimeout(() => { t.className = ''; }, duration);
 }
 
-// ── 收禮金格子顯示開關 ─────────────────────────────
-let showGift = localStorage.getItem('showGift') === '1'; // 預設隱藏
-function applyGiftVisibility() {
-  const grid   = document.getElementById('amount-grid');
-  const row    = document.getElementById('custom-row');
-  const label  = document.getElementById('gift-section-label');
-  const on     = showGift;
-  if (grid)  grid.style.display  = on ? 'grid' : 'none';
-  if (row)   row.style.display   = on ? 'flex' : 'none';
-  if (label) label.style.display = on ? 'flex' : 'none';
-  const toggleEl = document.getElementById('gift-toggle');
-  if (toggleEl) toggleEl.classList.toggle('on', on);
-  const textEl = document.getElementById('gift-toggle-text');
-  if (textEl) textEl.textContent = on ? '顯示收禮金' : '隱藏收禮金';
-}
-function toggleGiftVisibility() {
-  showGift = !showGift;
-  localStorage.setItem('showGift', showGift ? '1' : '0');
-  applyGiftVisibility();
-}
-
 // ── 載入 ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  applyGiftVisibility();
   if (sessionStorage.getItem('invited') === '1') loadAll();
 });
 
@@ -971,35 +915,30 @@ async function syncOne(guestId) {
 // ── 統計 ─────────────────────────────────────────
 function refreshStats() {
   const totals = { checked:0, total:0,
-                    groomChecked:0, brideChecked:0,
                     cakeQtyExpected:0, cakeQtyGiven:0,
-                    groomCakeQty:0, brideCakeQty:0 };
+                    jarQtyExpected:0, jarQtyGiven:0 };
 
   GROUPS.forEach(g => {
-    const isGroom = isGroomGroup(g.name);
     g.guests.forEach(gu => {
       const seats = gu.seats || 1;
       const r = rec(gu.id);
       totals.total += seats;
-      if (r.checkin) {
-        totals.checked += seats;
-        if (isGroom) totals.groomChecked += seats; else totals.brideChecked += seats;
-      }
-      // 喜餅數：以「喜餅數量」（份數）合計，非以人頭（賓客數）計算
+      if (r.checkin) totals.checked += seats;
+
+      // 喜餅／喜宴甕數：以「份數」合計，非以人頭（賓客數）計算
       const cakeQty = gu.cakeQty || 0;
       totals.cakeQtyExpected += cakeQty;
-      if (r.cake) {
-        const givenQty = r.cakeQty || cakeQty;
-        totals.cakeQtyGiven += givenQty;
-        if (isGroom) totals.groomCakeQty += givenQty; else totals.brideCakeQty += givenQty;
-      }
+      if (r.cake) totals.cakeQtyGiven += (r.cakeQty || cakeQty);
+
+      const jarQty = gu.jarQty || 0;
+      totals.jarQtyExpected += jarQty;
+      if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
     });
   });
 
   document.getElementById('s-checked-total').textContent = `${totals.checked} / ${totals.total}`;
-  document.getElementById('s-checked-sides').textContent = `新郎 ${totals.groomChecked} / 新娘 ${totals.brideChecked}`;
   document.getElementById('s-cake-total').textContent    = `${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`;
-  document.getElementById('s-cake-sides').textContent    = `新郎 ${totals.groomCakeQty} 份 / 新娘 ${totals.brideCakeQty} 份`;
+  document.getElementById('s-jar-total').textContent     = `${totals.jarQtyGiven} / ${totals.jarQtyExpected}`;
 }
 
 // ── 首頁分組 ──────────────────────────────────────
@@ -1021,7 +960,7 @@ function renderGroups() {
       </div>
       <div class="group-badges">
         <span class="badge badge-count">共 ${g.guests.length} 位賓客</span>
-        ${g.guests.length - chk > 0 ? `<span class="badge badge-pending">⏳ 尚未報到 ${g.guests.length - chk} 位</span>` : ''}
+        ${g.guests.length - chk > 0 ? `<span class="badge badge-pending">⏳ 未到 ${g.guests.length - chk} 位</span>` : ''}
       </div>`;
     (isGroomGroup(g.name) ? groomEl : brideEl).appendChild(card);
   });
@@ -1041,7 +980,7 @@ function showGroup(gid) {
 
 function renderGuests(guests) {
   const chk = guests.filter(g => rec(g.id).checkin).length;
-  document.getElementById('list-count').textContent = `${chk} / ${guests.length} 已報到`;
+  document.getElementById('list-count').textContent = `${chk} / ${guests.length} 已到`;
   // 排序：原有賓客在前，現場新增在後
   const sorted = [...guests].sort((a,b) => (a.isNew ? 1 : 0) - (b.isNew ? 1 : 0));
   const addCardHTML = `<div class="add-card" onclick="openAddModal()">
@@ -1175,7 +1114,7 @@ function renderTables() {
   const data = getTableData();
   const totalAll   = data.reduce((s,t) => s + t.totalSeats, 0);
   const checkedAll = data.reduce((s,t) => s + t.checkedSeats, 0);
-  document.getElementById('tables-count').textContent = `${checkedAll} / ${totalAll} 已報到`;
+  document.getElementById('tables-count').textContent = `${checkedAll} / ${totalAll} 已到`;
 
   const { mainTables, paired, others } = orderTables(data);
 
@@ -1226,7 +1165,7 @@ function showTableGuestList(tableKey) {
   list.forEach(({gu}) => { nameCounts[gu.name] = (nameCounts[gu.name]||0) + 1; });
 
   document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
-  document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已報到（含攜伴） ・ 共 ${list.length} 組賓客`;
+  document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已到（含攜伴） ・ 共 ${list.length} 組賓客`;
 
   document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, split}) => {
     const r = rec(gu.id);
@@ -1256,51 +1195,83 @@ function goHomeFromTables() {
   renderGroups(); refreshStats();
 }
 
-// ── 未完成事項總覽 ────────────────────────────────
-function pendingRowHTML(gu) {
+// ── 分類詳情頁（已到／已領取喜餅／已領取喜宴甕；依分組列出未領取／已領取名單）───
+const CATEGORY_META = {
+  checkin: {
+    title: '✅ 報到狀況', pendingLabel: '未到', doneLabel: '已到',
+    relevant: gu => true,
+    isDone: gu => rec(gu.id).checkin
+  },
+  cake: {
+    title: '🎂 喜餅領取狀況', pendingLabel: '尚未領取喜餅', doneLabel: '已領取喜餅',
+    relevant: gu => !!(gu.cakeQty && gu.cakeQty > 0),
+    isDone: gu => rec(gu.id).cake
+  },
+  jar: {
+    title: '🏺 喜宴甕領取狀況', pendingLabel: '尚未領取喜宴甕', doneLabel: '已領取喜宴甕',
+    relevant: gu => !!(gu.jarQty && gu.jarQty > 0),
+    isDone: gu => rec(gu.id).jar
+  }
+};
+
+let catDoneExpanded = false;
+
+function categoryRowHTML(gu) {
+  const r = rec(gu.id);
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
   const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
   return `<div class="tm-row" onclick="openModal(${gu.id})">
-    <span class="tm-dot ${rec(gu.id).checkin ? 'on' : ''}"></span>
-    <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name : ''} ・ 桌次 ${tableTxt}</span></span>
+    <span class="tm-dot ${r.checkin ? 'on' : ''}"></span>
+    <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name + ' ・ ' : ''}桌次 ${tableTxt}</span></span>
     <span class="tm-seats">${gu.seats} 位</span>
   </div>`;
 }
 
-function pendingSectionHTML(icon, title, list) {
-  const body = list.length
-    ? `<div class="pending-list-wrap">${list.map(pendingRowHTML).join('')}</div>`
-    : `<div class="pending-list-wrap"><div class="pending-empty">— 全數完成 ✓ —</div></div>`;
-  return `
-    <div class="pending-section-head">
-      <div class="divider-line"></div>
-      <div class="pending-section-title">${icon} ${title}<span class="pending-section-count">（${list.length} 組）</span></div>
-      <div class="divider-line"></div>
+function renderCategoryPage(cat) {
+  const meta = CATEGORY_META[cat];
+  const relevantAll = allGuests().filter(meta.relevant);
+  const pending = relevantAll.filter(gu => !meta.isDone(gu));
+  const done    = relevantAll.filter(gu => meta.isDone(gu));
+
+  document.getElementById('category-title').textContent = meta.title;
+  document.getElementById('category-count').textContent = `共 ${relevantAll.length} 組賓客`;
+
+  if (relevantAll.length === 0) {
+    document.getElementById('category-sections').innerHTML =
+      `<div class="pending-empty" style="padding:40px 4px;">此分類目前沒有相關賓客</div>`;
+    return;
+  }
+
+  document.getElementById('category-sections').innerHTML = `
+    <div class="cat-sub-label">${meta.pendingLabel}（${pending.length}）</div>
+    <div class="pending-list-wrap">${pending.length ? pending.map(categoryRowHTML).join('') : `<div class="pending-empty">— 全數完成 ✓ —</div>`}</div>
+    <div class="cat-sub-label done cat-collapsible" onclick="toggleCatDone()">
+      <span>${meta.doneLabel}（${done.length}）</span>
+      <span class="cat-collapse-arrow" id="cat-collapse-arrow">${catDoneExpanded ? '▾' : '▸'}</span>
     </div>
-    ${body}`;
+    <div class="pending-list-wrap cat-done-list" id="cat-done-list" style="display:${catDoneExpanded ? 'block' : 'none'};">
+      ${done.length ? done.map(categoryRowHTML).join('') : `<div class="pending-empty">— 尚無資料 —</div>`}
+    </div>`;
 }
 
-function renderPendingPage() {
-  const all = allGuests();
-  const notCheckedIn     = all.filter(gu => !rec(gu.id).checkin);
-  const cakeNotCollected = all.filter(gu => gu.cakeQty && gu.cakeQty > 0 && !rec(gu.id).cake);
-  const jarNotCollected  = all.filter(gu => gu.jarQty  && gu.jarQty  > 0 && !rec(gu.id).jar);
-
-  document.getElementById('pending-count').textContent = `共 ${all.length} 組賓客`;
-  document.getElementById('pending-sections').innerHTML =
-    pendingSectionHTML('⏳', '尚未報到', notCheckedIn) +
-    pendingSectionHTML('🎂', '尚未領取喜餅', cakeNotCollected) +
-    pendingSectionHTML('🏺', '尚未領取喜宴甕', jarNotCollected);
+function toggleCatDone() {
+  catDoneExpanded = !catDoneExpanded;
+  const list  = document.getElementById('cat-done-list');
+  const arrow = document.getElementById('cat-collapse-arrow');
+  list.style.display = catDoneExpanded ? 'block' : 'none';
+  arrow.textContent  = catDoneExpanded ? '▾' : '▸';
 }
 
-function showPendingPage() {
-  renderPendingPage();
+function showCategoryPage(cat) {
+  curCategory = cat;
+  catDoneExpanded = false;
+  renderCategoryPage(cat);
   document.getElementById('home').classList.remove('active');
-  document.getElementById('pending-page').classList.add('active');
+  document.getElementById('category-page').classList.add('active');
 }
 
-function goHomeFromPending() {
-  document.getElementById('pending-page').classList.remove('active');
+function goHomeFromCategory() {
+  document.getElementById('category-page').classList.remove('active');
   document.getElementById('home').classList.add('active');
   renderGroups(); refreshStats();
 }
@@ -1310,7 +1281,6 @@ function openModal(gid) {
   curGuestId = gid;
   const gu = allGuests().find(x => x.id === gid);
   const r  = rec(gid);
-  selAmt   = r.amount;
   curSeats = gu.seats;
 
   // 喜餅／喜宴甕：只有「賓客名單」表中該欄位有填數量（>0）的賓客才顯示對應按鈕，
@@ -1355,10 +1325,6 @@ function openModal(gid) {
     infoBlockEl.style.display = 'none';
   }
 
-  document.getElementById('amount-grid').innerHTML = AMOUNTS.map(a =>
-    `<button class="amt-btn${r.amount===a?' sel':''}" id="ab-${a}" onclick="pickAmt(${a})">NT$ ${a.toLocaleString()}</button>`
-  ).join('');
-  document.getElementById('custom-input').value = (r.amount && !AMOUNTS.includes(r.amount)) ? r.amount : '';
   renderToggles();
   document.getElementById('modal-wrap').classList.add('open');
 }
@@ -1368,16 +1334,6 @@ function changeSeat(delta) {
   document.getElementById('seat-display').textContent = curSeats;
 }
 
-function pickAmt(a) {
-  selAmt = a;
-  document.getElementById('custom-input').value = '';
-  AMOUNTS.forEach(x => { const b=document.getElementById('ab-'+x); if(b) b.className='amt-btn'+(x===a?' sel':''); });
-}
-function onCustomInput() {
-  const v = parseInt(document.getElementById('custom-input').value);
-  selAmt = isNaN(v) ? null : v;
-  AMOUNTS.forEach(x => { const b=document.getElementById('ab-'+x); if(b) b.className='amt-btn'; });
-}
 function toggle(key) {
   // 沒有喜餅／喜宴甕份數的賓客，該按鈕已隱藏，點擊無效
   if ((key === 'cake' || key === 'jar') && document.getElementById('tog-'+key).classList.contains('hidden')) return;
@@ -1400,7 +1356,6 @@ function save() {
   const envnoRaw = document.getElementById('edit-envno').value.trim();
 
   const r = rec(curGuestId);
-  r.amount    = selAmt;
   r.cake      = togState.cake;
   r.cakeQty   = togState.cake ? (gu.cakeQty || 0) : 0;
   r.jar       = togState.jar;
@@ -1412,8 +1367,8 @@ function save() {
   closeModal();
   const g = GROUPS.find(x => x.guests.some(gu => gu.id === curGuestId));
   if (g) renderGuests(g.guests);
-  if (document.getElementById('tables-page').classList.contains('active'))  renderTables();
-  if (document.getElementById('pending-page').classList.contains('active')) renderPendingPage();
+  if (document.getElementById('tables-page').classList.contains('active'))   renderTables();
+  if (document.getElementById('category-page').classList.contains('active') && curCategory) renderCategoryPage(curCategory);
   refreshStats(); renderGroups();
   syncOne(curGuestId);
 }
@@ -1423,7 +1378,7 @@ function handleWrapClick(e) { if(e.target===document.getElementById('modal-wrap'
 
 // 攔截主登記 modal 內輸入框的按鍵，防止閃退
 document.addEventListener('DOMContentLoaded', () => {
-  ['edit-table','custom-input'].forEach(id => {
+  ['edit-table'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('keydown', e => {
