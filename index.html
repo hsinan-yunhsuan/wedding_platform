@@ -87,6 +87,20 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .quick-nav-btn:hover { transform:translateY(-2px); box-shadow:var(--shadow-hover); background:#fff; }
 
+/* ── OVERVIEW（總覽入口）───────────────────────── */
+.overview-entry-wrap { text-align:center; padding:6px 0 34px; }
+.overview-entry {
+  display:inline-flex; align-items:center; gap:2px;
+  background:rgba(255,255,255,.85); border:1px solid var(--border);
+  border-radius:999px; padding:11px 26px; font-size:12.5px; font-weight:500;
+  letter-spacing:.5px; color:var(--gold-dark); cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif; box-shadow:var(--shadow-card); transition:all .2s ease;
+}
+.overview-entry:hover { background:#fff; border-color:var(--gold-light); box-shadow:var(--shadow-hover); transform:translateY(-2px); }
+.overview-entry:active { transform:translateY(0); box-shadow:var(--shadow-card); }
+.overview-stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.overview-stats-grid .stat-card.full { grid-column:1 / -1; }
+
 /* ── TABLES OVERVIEW PAGE ──────────────────────── */
 .table-card {
   background:rgba(255,255,255,.9); border:1px solid var(--border);
@@ -196,11 +210,12 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .back-btn {
   display:inline-flex; align-items:center; gap:6px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:9px 16px; font-size:13px;
-  color:var(--text-mid); cursor:pointer; font-family:'Noto Sans TC',sans-serif; transition:all .15s;
-  white-space:nowrap;
+  border-radius:999px; padding:9px 18px 9px 15px; font-size:13px; font-weight:500;
+  color:var(--gold-dark); cursor:pointer; font-family:'Noto Sans TC',sans-serif;
+  transition:all .2s ease; white-space:nowrap; box-shadow:var(--shadow-card);
 }
-.back-btn:hover { background:var(--cream2); color:var(--gold-dark); }
+.back-btn:hover { background:#fff; border-color:var(--gold-light); box-shadow:var(--shadow-hover); transform:translateX(-3px); }
+.back-btn:active { transform:translateX(-1px) scale(.96); box-shadow:var(--shadow-card); }
 .list-header-title { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:300; color:var(--gold); }
 .list-header-count { font-size:12px; color:var(--text-light); margin-left:auto; }
 .list-add-btn {
@@ -283,6 +298,15 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   position:sticky; top:0; background:linear-gradient(160deg,#fffef9 0%,#f7f0e8 100%);
   border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:10;
 }
+#modal-wrap .modal-header { padding-right:52px; }
+.modal-corner-del {
+  position:absolute; top:16px; right:16px; width:32px; height:32px;
+  border-radius:50%; border:1px solid rgba(192,57,43,.3);
+  background:rgba(192,57,43,.08); color:#c0392b; font-size:14px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all .15s; z-index:11; padding:0; line-height:1;
+}
+.modal-corner-del:hover { background:rgba(192,57,43,.18); border-color:rgba(192,57,43,.5); transform:scale(1.05); }
 .modal-ornament { font-family:'Cormorant Garamond',serif; font-size:11px; color:var(--gold); letter-spacing:5px; margin-bottom:5px; }
 .name-caption { font-size:9px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; margin-bottom:4px; }
 .modal-name { font-family:'Montserrat',sans-serif; font-size:24px; font-weight:300; color:var(--text); letter-spacing:.06em; }
@@ -351,7 +375,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .toggle-item.active-toggle .toggle-circle { background:var(--green); border-color:var(--green); color:#fff; }
 
-.modal-footer { padding:0 24px 24px; display:flex; gap:10px; }
+.modal-footer { padding:0 24px 24px; display:flex; flex-wrap:wrap; gap:10px; }
 .btn-cancel {
   flex:1; padding:14px; border-radius:var(--radius);
   background:rgba(255,255,255,.85); border:1px solid var(--border);
@@ -549,19 +573,19 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   <div class="stats-section">
     <div class="stats-grid">
       <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
-        <div class="stat-label">已到</div>
+        <div class="stat-label">已到／人數（含攜伴）</div>
         <div class="stat-line1" id="s-checked-total">—</div>
       </div>
+      <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
+        <div class="stat-label">已到／組數（不含攜伴）</div>
+        <div class="stat-line1" id="s-checked-groups">—</div>
+      </div>
       <div class="stat-card stat-card-click" onclick="showCategoryPage('cake')">
-        <div class="stat-label">已領取喜餅</div>
+        <div class="stat-label">已領／喜餅提領數量</div>
         <div class="stat-line1" id="s-cake-total">—</div>
       </div>
-      <div class="stat-card stat-card-click" onclick="showCategoryPage('jar')">
-        <div class="stat-label">已領取喜宴甕</div>
-        <div class="stat-line1" id="s-jar-total">—</div>
-      </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到人所攜同出席之總人數；喜餅／喜宴甕＝份數；點擊卡片可查看詳細名單</div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到人所攜同出席之總人數；賓客組數＝報到登記筆數（不含攜伴）；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -581,6 +605,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
     <div class="side-col bride-col">
       <div id="bride-groups"></div>
     </div>
+  </div>
+  <div class="overview-entry-wrap">
+    <button class="overview-entry" onclick="showOverview()">📊&nbsp; 更多總覽</button>
   </div>
 </div>
 
@@ -621,6 +648,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 <div class="modal-wrap" id="modal-wrap" onclick="handleWrapClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
+      <button class="modal-corner-del" id="modal-del-btn" onclick="deleteGuestFromModal()" style="display:none;" title="刪除此現場新增賓客">🗑️</button>
       <div class="modal-ornament">✦ 賓客登記 ✦</div>
       <div class="name-caption">報到大名</div>
       <div class="modal-name" id="m-name"></div>
@@ -716,6 +744,15 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   </div>
 </div>
 
+<!-- 總覽 PAGE -->
+<div id="overview-page" class="page">
+  <div class="list-header">
+    <button class="back-btn" onclick="goHomeFromOverview()">← 返回</button>
+    <div class="list-header-title">📊 更多總覽</div>
+  </div>
+  <div id="overview-body" style="padding:16px var(--pad) 36px;"></div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════
 // Cloudflare Worker proxy — GAS 網址和 token 都藏在 Worker 裡，外部看不到
@@ -733,7 +770,7 @@ function isBrideGroup(name) {
 
 let GROUPS = [];
 const records = {};
-let curGuestId = null, curGroupId = null, curCategory = null;
+let curGuestId = null, curGroupId = null, curCategory = null, categoryOrigin = 'home';
 let curSeats = 1, togState = {cake:false,checkin:false,jar:false};
 let newGuestCounter = 9000;
 
@@ -876,6 +913,23 @@ async function loadAll() {
   }
 }
 
+// ── 驗證某筆資料是否已寫入 Google Sheet（多次重試，避免 GAS 寫入較慢時被誤判失敗）───
+async function verifyRecordSynced(id, attempts = 4, delayMs = 900) {
+  for (let i = 0; i < attempts; i++) {
+    await new Promise(res => setTimeout(res, delayMs));
+    try {
+      const verifyResp = await fetch(GAS_URL + '?action=getRecords');
+      const verifyData = await verifyResp.json();
+      const found = verifyData.records?.find(row => String(row.id) === String(id));
+      if (found) return true;
+    } catch (e) {
+      // 這次驗證失敗，稍後再重試一次
+    }
+    delayMs = Math.min(delayMs * 1.5, 3000);
+  }
+  return false;
+}
+
 // ── 同步（有成功/失敗提示）───────────────────────
 async function syncOne(guestId) {
   const gu = allGuests().find(x => x.id === guestId);
@@ -903,11 +957,8 @@ async function syncOne(guestId) {
       body: JSON.stringify({ records: [payload] })
     });
 
-    // Step2: GET 驗證該筆是否真的寫進去了
-    await new Promise(res => setTimeout(res, 800)); // 等 GAS 寫完
-    const verifyResp = await fetch(GAS_URL + '?action=getRecords');
-    const verifyData = await verifyResp.json();
-    const found = verifyData.records?.find(row => String(row.id) === String(gu.id));
+    // Step2: 多次重試 GET 驗證該筆是否真的寫進去了（GAS 寫入常需 1~3 秒，避免誤判失敗）
+    const found = await verifyRecordSynced(gu.id);
 
     if (found) {
       showToast(`✓ ${gu.name} 已同步至 Google Sheet`,'ok');
@@ -919,33 +970,29 @@ async function syncOne(guestId) {
   }
 }
 
-// ── 統計 ─────────────────────────────────────────
+// ── 統計（主頁小卡：不含喜宴甕）───────────────────
 function refreshStats() {
-  const totals = { checked:0, total:0,
-                    cakeQtyExpected:0, cakeQtyGiven:0,
-                    jarQtyExpected:0, jarQtyGiven:0 };
+  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0,
+                    cakeQtyExpected:0, cakeQtyGiven:0 };
 
   GROUPS.forEach(g => {
     g.guests.forEach(gu => {
       const seats = gu.seats || 1;
       const r = rec(gu.id);
       totals.total += seats;
-      if (r.checkin) totals.checked += seats;
+      totals.groupsTotal += 1;
+      if (r.checkin) { totals.checked += seats; totals.groupsChecked += 1; }
 
-      // 喜餅／喜宴甕數：以「份數」合計，非以人頭（賓客數）計算
+      // 喜餅數：以「份數」合計，非以人頭（賓客數）計算
       const cakeQty = gu.cakeQty || 0;
       totals.cakeQtyExpected += cakeQty;
       if (r.cake) totals.cakeQtyGiven += (r.cakeQty || cakeQty);
-
-      const jarQty = gu.jarQty || 0;
-      totals.jarQtyExpected += jarQty;
-      if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
     });
   });
 
-  document.getElementById('s-checked-total').textContent = `${totals.checked} / ${totals.total}`;
-  document.getElementById('s-cake-total').textContent    = `${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`;
-  document.getElementById('s-jar-total').textContent     = `${totals.jarQtyGiven} / ${totals.jarQtyExpected}`;
+  document.getElementById('s-checked-total').textContent  = `${totals.checked} / ${totals.total}`;
+  document.getElementById('s-checked-groups').textContent = `${totals.groupsChecked} / ${totals.groupsTotal}`;
+  document.getElementById('s-cake-total').textContent     = `${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`;
 }
 
 // ── 首頁分組 ──────────────────────────────────────
@@ -1009,15 +1056,20 @@ function renderGuests(guests) {
     const split = isSplitTable(gu.table);
     const tableDisp = gu.table ? formatTableDisplay(gu.table) : '—';
     const hasCake = !!(gu.cakeQty && gu.cakeQty > 0);
-    const hasJar  = !!(gu.jarQty && gu.jarQty > 0);
-    const detailRows = [
+    // 現場新增的小卡：只顯示桌次、賓客人數、紅包編號、已到、領取喜餅（不顯示數量）
+    const detailRows = isNew ? [
+      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
+      `<div class="detail-row"><span class="detail-label">👥 賓客人數</span><span class="detail-val">${gu.seats} 位</span></div>`,
+      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
+      `<div class="detail-row"><span class="detail-label">✅ 已到</span><span class="detail-val">${r.checkin ? '是' : '否'}</span></div>`,
+      `<div class="detail-row"><span class="detail-label">🎁 領取喜餅</span><span class="detail-val">${r.cake ? '已領取' : '未領取'}</span></div>`,
+    ].join('') : [
       `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
       `<div class="detail-row"><span class="detail-label">👥 賓客人數</span><span class="detail-val">${gu.seats} 位</span></div>`,
       gu.childChair ? `<div class="detail-row"><span class="detail-label">🍼 嬰兒</span><span class="detail-val">${gu.childChair}</span></div>` : '',
       (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : '',
       `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
       hasCake ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${gu.cakeQty}` : `未領取（共 ${gu.cakeQty} 份）`}</span></div>` : '',
-      hasJar  ? `<div class="detail-row"><span class="detail-label">🏺 喜宴甕</span><span class="detail-val">${r.jar ? `已領取 × ${gu.jarQty}` : `未領取（共 ${gu.jarQty} 份）`}</span></div>` : '',
     ].join('');
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
@@ -1048,6 +1100,14 @@ function deleteGuest(guestId) {
   showToast('已刪除賓客', 'ok');
   // 同步刪除 Google Sheet 該列
   syncDeleteRecord(id);
+}
+
+// 從「賓客登記」視窗內刪除現場新增的賓客（小卡外的刪除入口，較大顆更好點）
+function deleteGuestFromModal() {
+  if (!curGuestId) return;
+  const id = curGuestId;
+  closeModal();
+  deleteGuest(id);
 }
 
 async function syncDeleteRecord(id) {
@@ -1208,6 +1268,57 @@ function showTableGuestList(tableKey) {
 function closeTableModal() { document.getElementById('table-modal-wrap').classList.remove('open'); }
 function handleTableWrapClick(e) { if (e.target === document.getElementById('table-modal-wrap')) closeTableModal(); }
 
+// ── 總覽（不顯眼入口；彙總各項數字，與主頁小卡相同樣式，可點入查看名單）───
+function renderOverview() {
+  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, giftCount:0,
+                    cakeQtyExpected:0, cakeQtyGiven:0,
+                    jarQtyExpected:0, jarQtyGiven:0 };
+
+  allGuests().forEach(gu => {
+    const r = rec(gu.id);
+    const seats = gu.seats || 1;
+    totals.total += seats;
+    totals.groupsTotal += 1;
+    if (r.checkin) { totals.checked += seats; totals.groupsChecked += 1; }
+    if (r.envNo && String(r.envNo).trim() !== '') totals.giftCount += 1;
+
+    const cakeQty = gu.cakeQty || 0;
+    totals.cakeQtyExpected += cakeQty;
+    if (r.cake) totals.cakeQtyGiven += (r.cakeQty || cakeQty);
+
+    const jarQty = gu.jarQty || 0;
+    totals.jarQtyExpected += jarQty;
+    if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
+  });
+
+  const cards = [
+    { label:'賓客總人數', value:`${totals.checked} / ${totals.total}`, cat:'checkin', green:true },
+    { label:'賓客總組數', value:`${totals.groupsChecked} / ${totals.groupsTotal}`, cat:'checkin', green:true },
+    { label:'收禮人數',   value:`${totals.giftCount} / ${totals.groupsTotal}`, cat:'gift' },
+    { label:'喜餅總數',   value:`${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`, cat:'cake' },
+    { label:'喜宴甕總數', value:`${totals.jarQtyExpected}`, cat:'jar', full:true },
+  ];
+
+  document.getElementById('overview-body').innerHTML =
+    `<div class="overview-stats-grid">` +
+    cards.map(c => `<div class="stat-card${c.green?' green-num':''}${c.clickable===false?'':' stat-card-click'}${c.full?' full':''}"${c.clickable===false?'':` onclick="showCategoryPage('${c.cat}','overview')"`}>
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-line1">${c.value}</div>
+      </div>`).join('') +
+    `</div>`;
+}
+
+function showOverview() {
+  renderOverview();
+  document.getElementById('home').classList.remove('active');
+  document.getElementById('overview-page').classList.add('active');
+}
+function goHomeFromOverview() {
+  document.getElementById('overview-page').classList.remove('active');
+  document.getElementById('home').classList.add('active');
+  renderGroups(); refreshStats();
+}
+
 function showTablesPage() {
   renderTables();
   document.getElementById('home').classList.remove('active');
@@ -1233,9 +1344,15 @@ const CATEGORY_META = {
     isDone: gu => rec(gu.id).cake
   },
   jar: {
-    title: '🏺 喜宴甕領取狀況', pendingLabel: '尚未領取喜宴甕', doneLabel: '已領取喜宴甕',
+    title: '🏺 可領取喜宴甕名單', pendingLabel: '', doneLabel: '',
     relevant: gu => !!(gu.jarQty && gu.jarQty > 0),
-    isDone: gu => rec(gu.id).jar
+    isDone: gu => rec(gu.id).jar,
+    flatList: true
+  },
+  gift: {
+    title: '🧧 收禮狀況', pendingLabel: '尚未收禮', doneLabel: '已收禮',
+    relevant: gu => true,
+    isDone: gu => { const r = rec(gu.id); return !!(r.envNo && String(r.envNo).trim() !== ''); }
   }
 };
 
@@ -1255,8 +1372,6 @@ function categoryRowHTML(gu) {
 function renderCategoryPage(cat) {
   const meta = CATEGORY_META[cat];
   const relevantAll = allGuests().filter(meta.relevant);
-  const pending = relevantAll.filter(gu => !meta.isDone(gu));
-  const done    = relevantAll.filter(gu => meta.isDone(gu));
 
   document.getElementById('category-title').textContent = meta.title;
   document.getElementById('category-count').textContent = `共 ${relevantAll.length} 組賓客`;
@@ -1266,6 +1381,15 @@ function renderCategoryPage(cat) {
       `<div class="pending-empty" style="padding:40px 4px;">此分類目前沒有相關賓客</div>`;
     return;
   }
+
+  if (meta.flatList) {
+    document.getElementById('category-sections').innerHTML =
+      `<div class="pending-list-wrap">${relevantAll.map(categoryRowHTML).join('')}</div>`;
+    return;
+  }
+
+  const pending = relevantAll.filter(gu => !meta.isDone(gu));
+  const done    = relevantAll.filter(gu => meta.isDone(gu));
 
   document.getElementById('category-sections').innerHTML = `
     <div class="cat-sub-label">${meta.pendingLabel}（${pending.length}）</div>
@@ -1287,16 +1411,23 @@ function toggleCatDone() {
   arrow.textContent  = catDoneExpanded ? '▾' : '▸';
 }
 
-function showCategoryPage(cat) {
+function showCategoryPage(cat, origin) {
   curCategory = cat;
+  categoryOrigin = origin || 'home';
   catDoneExpanded = false;
   renderCategoryPage(cat);
   document.getElementById('home').classList.remove('active');
+  document.getElementById('overview-page').classList.remove('active');
   document.getElementById('category-page').classList.add('active');
 }
 
 function goHomeFromCategory() {
   document.getElementById('category-page').classList.remove('active');
+  if (categoryOrigin === 'overview') {
+    renderOverview();
+    document.getElementById('overview-page').classList.add('active');
+    return;
+  }
   document.getElementById('home').classList.add('active');
   renderGroups(); refreshStats();
 }
@@ -1308,16 +1439,20 @@ function openModal(gid) {
   const r  = rec(gid);
   curSeats = gu.seats;
 
-  // 喜餅／喜宴甕：只有「賓客名單」表中該欄位有填數量（>0）的賓客才顯示對應按鈕，
+  // 喜餅／喜宴甕：只有「賓客名單」表中該欄位有填數量（>0）的賓客才顯示喜餅按鈕，
   // 數量固定取自 Excel 來源，不提供現場調整
+  // 喜宴甕：一律不在個別賓客的登記視窗顯示（只在「更多總覽」的可領名單中呈現）
   const hasCake = !!(gu.cakeQty && gu.cakeQty > 0);
-  const hasJar  = !!(gu.jarQty && gu.jarQty > 0);
+  const hasJar  = false;
   togState = { cake: hasCake && r.cake, jar: hasJar && r.jar, checkin: r.checkin };
 
   document.getElementById('tog-cake').classList.toggle('hidden', !hasCake);
   document.getElementById('tog-jar').classList.toggle('hidden', !hasJar);
-  document.getElementById('cake-qty-label').textContent = hasCake ? `（共 ${gu.cakeQty} 份）` : '';
-  document.getElementById('jar-qty-label').textContent  = hasJar  ? `（共 ${gu.jarQty} 份）`  : '';
+  document.getElementById('cake-qty-label').textContent = hasCake ? (gu.isNew ? '（需確認是否可領）' : `（共 ${gu.cakeQty} 份）`) : '';
+  document.getElementById('jar-qty-label').textContent  = '';
+
+  // 現場新增的賓客：在登記視窗也提供刪除按鈕（小卡外的刪除入口）
+  document.getElementById('modal-del-btn').style.display = gu.isNew ? 'flex' : 'none';
 
   document.getElementById('m-name').textContent = gu.name;
   document.getElementById('edit-table').value = gu.table || '';
@@ -1451,8 +1586,10 @@ async function saveNewGuest() {
   const g = GROUPS.find(x => x.id === curGroupId);
   if (!g) return;
 
-  newGuestCounter++;
-  const newGuest = {id:newGuestCounter, name, table, seats, isNew:true, cakeQty:seats, jarQty:seats};
+  // 用時間戳記＋亂數產生 ID，避免多台裝置同時「現場新增」時互相撞號、蓋掉彼此的資料
+  const newId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  if (newId > newGuestCounter) newGuestCounter = newId;
+  const newGuest = {id:newId, name, table, seats, isNew:true, cakeQty:seats};
   g.guests.push(newGuest);
   closeAddModal();
   renderGuests(g.guests);
@@ -1470,11 +1607,8 @@ async function saveNewGuest() {
         amount: '', cake: 0, cakeQty: 0, jar: 0, jarQty: 0, checkin: 0, envNo: ''
       }]})
     });
-    // no-cors 無法讀回應，等一下用 GET 驗證
-    await new Promise(res => setTimeout(res, 800));
-    const verifyResp = await fetch(GAS_URL + '?action=getRecords');
-    const verifyData = await verifyResp.json();
-    const found = verifyData.records?.find(row => String(row.id) === String(newGuest.id));
+    // no-cors 無法讀回應，多次重試 GET 驗證（GAS 寫入常需 1~3 秒，避免誤判失敗）
+    const found = await verifyRecordSynced(newGuest.id);
     if (found) {
       showToast(`✓ ${name} 已新增至 Google Sheet`,'ok');
     } else {
