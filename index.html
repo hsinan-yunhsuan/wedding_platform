@@ -199,8 +199,6 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .group-badges { display:flex; flex-wrap:wrap; gap:4px; }
 .badge { font-size:10px; padding:2px 8px; border-radius:20px; }
 .badge-count { background:var(--cream2); color:var(--text-mid); }
-.badge-ok { background:var(--green-light); color:var(--green); }
-.badge-pending { background:rgba(212,163,115,.15); color:var(--gold-dark); }
 
 /* ── LIST PAGE ─────────────────────────────────── */
 .list-header {
@@ -325,9 +323,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .edit-row {
   display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:20px;
+  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
 }
-.edit-label { font-size:13px; color:var(--text-mid); flex:1; }
+.edit-label { font-size:14px; color:var(--text-mid); flex:1; }
 .seat-ctrl { display:flex; align-items:center; gap:10px; }
 .seat-btn {
   width:30px; height:30px; border-radius:50%; border:1px solid var(--border);
@@ -340,11 +338,11 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-edit-row {
   display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:20px;
+  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
   transition:border-color .15s;
 }
 .table-edit-row:focus-within { border-color:var(--gold-light); }
-.table-edit-label { font-size:13px; color:var(--text-mid); flex:1; }
+.table-edit-label { font-size:14px; color:var(--text-mid); flex:1; }
 .table-edit-input {
   border:none; background:transparent; font-size:14px; font-weight:500;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
@@ -403,13 +401,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .add-input::placeholder { color:var(--text-light); }
 .add-hint { font-size:10.5px; color:var(--text-light); margin-top:5px; line-height:1.5; }
 
-/* ── 賓客資訊（兒童椅需求／喜宴甕／備註，唯讀）───── */
+/* ── 賓客資訊（兒童椅需求／喜宴甕，唯讀）───── */
 .guest-info-block {
   background:rgba(141,163,153,.08); border:1px solid var(--green-light);
-  border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:20px;
-  display:flex; flex-direction:column; gap:7px;
+  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
+  display:flex; flex-direction:column; gap:10px;
 }
-.guest-info-row { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; }
+.guest-info-row { display:flex; justify-content:space-between; gap:10px; font-size:14px; }
 .guest-info-row .gi-label { color:var(--text-mid); flex-shrink:0; }
 .guest-info-row .gi-val { color:var(--text); font-weight:500; text-align:right; }
 
@@ -675,19 +673,19 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
       <div class="section-label">登記項目</div>
       <div class="toggle-list">
         <div class="toggle-item static-row">
-          <span class="toggle-text">🧧 &nbsp;紅包編號</span>
+          <span class="toggle-text">🧧 紅包編號</span>
           <input class="envno-input" type="text" id="edit-envno" placeholder="可填寫文字或多筆編號" />
         </div>
         <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
-          <span class="toggle-text">🎁 &nbsp;領取喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
+          <span class="toggle-text">🎁 領取喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
           <div class="toggle-circle" id="chk-cake">✓</div>
         </div>
         <div class="toggle-item" id="tog-jar" onclick="toggle('jar')">
-          <span class="toggle-text">🏺 &nbsp;領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
+          <span class="toggle-text">🏺 領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
           <div class="toggle-circle" id="chk-jar">✓</div>
         </div>
         <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
-          <span class="toggle-text">✅ &nbsp;已到</span>
+          <span class="toggle-text">✅ 已到</span>
           <div class="toggle-circle" id="chk-checkin">✓</div>
         </div>
       </div>
@@ -1013,8 +1011,7 @@ function renderGroups() {
         <div class="group-name">${g.name}</div>
       </div>
       <div class="group-badges">
-        <span class="badge badge-count">共 ${g.guests.length} 位賓客</span>
-        ${g.guests.length - chk > 0 ? `<span class="badge badge-pending">⏳ 未到 ${g.guests.length - chk} 位</span>` : ''}
+        <span class="badge badge-count">未到 ${g.guests.length - chk} 組 / 共 ${g.guests.length} 組賓客</span>
       </div>`;
     (isGroomGroup(g.name) ? groomEl : brideEl).appendChild(card);
   });
