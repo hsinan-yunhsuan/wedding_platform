@@ -521,6 +521,57 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   box-shadow:0 4px 18px rgba(180,130,50,.35); transition:all .18s;
 }
 .invite-btn:hover { box-shadow:0 6px 28px rgba(180,130,50,.5); transform:translateY(-1px); }
+
+/* ── 底部賓客搜尋列 ──────────────────────────────── */
+body { padding-bottom:82px; }
+.gsearch-bar {
+  position:fixed; left:0; right:0; bottom:0; z-index:150;
+  backdrop-filter:blur(20px); background:rgba(255,255,255,.92);
+  border-top:1px solid var(--border); box-shadow:0 -8px 28px rgba(140,110,80,.12);
+  padding:12px var(--pad); padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
+}
+.gsearch-input-wrap { position:relative; max-width:520px; margin:0 auto; }
+.gsearch-icon {
+  position:absolute; left:15px; top:50%; transform:translateY(-50%);
+  font-size:14px; color:var(--gold); pointer-events:none;
+}
+.gsearch-input {
+  width:100%; padding:12px 40px 12px 38px; border-radius:999px;
+  border:1.5px solid var(--border); background:var(--cream2);
+  font-size:14px; color:var(--text); font-family:'Noto Sans TC',sans-serif;
+  outline:none; transition:border-color .2s, background .2s; -webkit-appearance:none;
+}
+.gsearch-input:focus { border-color:var(--gold-light); background:var(--white); }
+.gsearch-input::placeholder { color:var(--text-light); }
+.gsearch-clear {
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:24px; height:24px; border-radius:50%; border:none;
+  background:var(--cream3); color:var(--text-light); font-size:12px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; padding:0;
+}
+.gsearch-clear.show { display:flex; }
+.gsearch-results {
+  position:absolute; left:0; right:0; bottom:calc(100% + 10px);
+  max-height:min(52vh,380px); overflow-y:auto;
+  background:var(--white); border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow-modal); display:none; flex-direction:column;
+}
+.gsearch-results.open { display:flex; }
+.gsearch-row {
+  display:flex; align-items:center; gap:9px; padding:11px 14px;
+  border-bottom:1px solid var(--border); cursor:pointer; transition:background .15s;
+}
+.gsearch-row:last-child { border-bottom:none; }
+.gsearch-row:hover { background:var(--cream2); }
+.gsearch-dot { width:8px; height:8px; border-radius:50%; background:var(--cream3); flex-shrink:0; }
+.gsearch-dot.on { background:var(--green); }
+.gsearch-name { font-size:13.5px; color:var(--text); font-weight:500; flex-shrink:0; white-space:nowrap; }
+.gsearch-meta {
+  font-size:11px; color:var(--text-light); margin-left:auto; text-align:right;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.gsearch-empty { padding:16px 14px; text-align:center; color:var(--text-light); font-size:12.5px; }
+@media (max-width:640px) { .gsearch-meta { max-width:38vw; } }
 </style>
 </head>
 <body>
@@ -751,6 +802,19 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   <div id="overview-body" style="padding:16px var(--pad) 36px;"></div>
 </div>
 
+<!-- 底部：全域賓客搜尋 -->
+<div class="gsearch-bar" id="gsearch-bar">
+  <div class="gsearch-input-wrap">
+    <div class="gsearch-results" id="gsearch-results"></div>
+    <span class="gsearch-icon">🔍</span>
+    <input class="gsearch-input" id="gsearch-input" type="text"
+      placeholder="搜尋賓客姓名…" autocomplete="off"
+      oninput="handleGlobalSearch()"
+      onfocus="handleGlobalSearch()" />
+    <button class="gsearch-clear" id="gsearch-clear" onclick="clearGlobalSearch()" title="清除">✕</button>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════
 // Cloudflare Worker proxy — GAS 網址和 token 都藏在 Worker 裡，外部看不到
@@ -846,6 +910,66 @@ function showToast(msg, type='ok', duration=3000) {
   t.className = 'show ' + type;
   toastTimer = setTimeout(() => { t.className = ''; }, duration);
 }
+
+// ── 底部：全域賓客搜尋（依姓名關鍵字，只要包含輸入的字即列出）───
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function handleGlobalSearch() {
+  const input   = document.getElementById('gsearch-input');
+  const clearBtn= document.getElementById('gsearch-clear');
+  const resultsEl = document.getElementById('gsearch-results');
+  const q = input.value.trim();
+
+  clearBtn.classList.toggle('show', q.length > 0);
+
+  if (!q) { resultsEl.classList.remove('open'); resultsEl.innerHTML = ''; return; }
+
+  const matches = [];
+  GROUPS.forEach(g => {
+    g.guests.forEach(gu => {
+      if (gu.name && gu.name.includes(q)) matches.push({ gu, groupName: g.name });
+    });
+  });
+
+  if (!matches.length) {
+    resultsEl.innerHTML = `<div class="gsearch-empty">查無姓名包含「${escapeHtml(q)}」的賓客</div>`;
+    resultsEl.classList.add('open');
+    return;
+  }
+
+  resultsEl.innerHTML = matches.slice(0, 30).map(({ gu, groupName }) => {
+    const checked = rec(gu.id).checkin;
+    const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
+    return `<div class="gsearch-row" onclick="selectGlobalSearchResult(${gu.id})">
+      <span class="gsearch-dot ${checked ? 'on' : ''}"></span>
+      <span class="gsearch-name">${escapeHtml(gu.name)}</span>
+      <span class="gsearch-meta">${escapeHtml(groupName)}　🪑${escapeHtml(tableTxt)}</span>
+    </div>`;
+  }).join('');
+  resultsEl.classList.add('open');
+}
+
+function selectGlobalSearchResult(gid) {
+  clearGlobalSearch();
+  openModal(gid);
+}
+
+function clearGlobalSearch() {
+  document.getElementById('gsearch-input').value = '';
+  document.getElementById('gsearch-clear').classList.remove('show');
+  const resultsEl = document.getElementById('gsearch-results');
+  resultsEl.classList.remove('open');
+  resultsEl.innerHTML = '';
+}
+
+document.addEventListener('click', e => {
+  const bar = document.getElementById('gsearch-bar');
+  if (bar && !bar.contains(e.target)) {
+    document.getElementById('gsearch-results')?.classList.remove('open');
+  }
+});
 
 // ── 載入 ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -1156,7 +1280,7 @@ function getTableData() {
   }));
 }
 
-// 排序邏輯：主桌最上（獨佔一整列）→ 依桌號左偶右奇成對排列 → 無法辨識桌號的放最後
+// 排序邏輯：主桌最上（獨佔一整列）→ 依桌號左奇右偶成對排列（T1/T2、T3/T4…）→ 無法辨識桌號的放最後
 function orderTables(data) {
   const mainTables = [];
   const numbered = [];
@@ -1178,8 +1302,8 @@ function orderTables(data) {
   const paired = [];
   const maxLen = Math.max(evens.length, odds.length);
   for (let i = 0; i < maxLen; i++) {
-    if (evens[i]) paired.push(evens[i]);
     if (odds[i])  paired.push(odds[i]);
+    if (evens[i]) paired.push(evens[i]);
   }
 
   others.sort((a,b) => a.table.localeCompare(b.table, 'zh-Hant', {numeric:true}));
