@@ -76,6 +76,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .stat-card-click { cursor:pointer; }
 .stat-card-click:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(180,130,50,.18); border-color:var(--gold-light); }
 .stat-card-click:active { transform:translateY(0); }
+.stat-card-entry { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+.stat-entry-icon { font-size:22px; line-height:1; }
+.stat-entry-label { font-size:11px; font-weight:500; color:var(--gold-dark); letter-spacing:.02em; }
 
 /* ── QUICK NAV ─────────────────────────────────── */
 .quick-nav { padding:14px var(--pad) 0; }
@@ -87,17 +90,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .quick-nav-btn:hover { transform:translateY(-2px); box-shadow:var(--shadow-hover); background:#fff; }
 
-/* ── OVERVIEW（總覽入口）───────────────────────── */
-.overview-entry-wrap { text-align:center; padding:6px 0 34px; }
-.overview-entry {
-  display:inline-flex; align-items:center; gap:2px;
-  background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:999px; padding:11px 26px; font-size:12.5px; font-weight:500;
-  letter-spacing:.5px; color:var(--gold-dark); cursor:pointer;
-  font-family:'Noto Sans TC',sans-serif; box-shadow:var(--shadow-card); transition:all .2s ease;
-}
-.overview-entry:hover { background:#fff; border-color:var(--gold-light); box-shadow:var(--shadow-hover); transform:translateY(-2px); }
-.overview-entry:active { transform:translateY(0); box-shadow:var(--shadow-card); }
+/* ── OVERVIEW（總覽頁）───────────────────────────── */
 .overview-stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
 .overview-stats-grid .stat-card.full { grid-column:1 / -1; }
 
@@ -622,19 +615,19 @@ body { padding-bottom:82px; }
   <div class="stats-section">
     <div class="stats-grid">
       <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
-        <div class="stat-label">已到／人數（含攜伴）</div>
+        <div class="stat-label">賓客人數（含攜伴）</div>
         <div class="stat-line1" id="s-checked-total">—</div>
       </div>
-      <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
-        <div class="stat-label">已到／組數（不含攜伴）</div>
-        <div class="stat-line1" id="s-checked-groups">—</div>
-      </div>
       <div class="stat-card stat-card-click" onclick="showCategoryPage('cake')">
-        <div class="stat-label">已領／喜餅提領數量</div>
+        <div class="stat-label">喜餅提領數量</div>
         <div class="stat-line1" id="s-cake-total">—</div>
       </div>
+      <div class="stat-card stat-card-click stat-card-entry" onclick="showOverview()">
+        <div class="stat-entry-icon">📊</div>
+        <div class="stat-entry-label">更多總覽</div>
+      </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到人所攜同出席之總人數；賓客組數＝報到登記筆數（不含攜伴）；喜餅＝份數；點擊卡片可查看詳細名單</div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數（含攜伴）＝每組報到人所攜同出席之總人數；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -654,9 +647,6 @@ body { padding-bottom:82px; }
     <div class="side-col bride-col">
       <div id="bride-groups"></div>
     </div>
-  </div>
-  <div class="overview-entry-wrap">
-    <button class="overview-entry" onclick="showOverview()">📊&nbsp; 更多總覽</button>
   </div>
 </div>
 
@@ -1113,7 +1103,6 @@ function refreshStats() {
   });
 
   document.getElementById('s-checked-total').textContent  = `${totals.checked} / ${totals.total}`;
-  document.getElementById('s-checked-groups').textContent = `${totals.groupsChecked} / ${totals.groupsTotal}`;
   document.getElementById('s-cake-total').textContent     = `${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`;
 }
 
