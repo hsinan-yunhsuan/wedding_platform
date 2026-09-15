@@ -36,6 +36,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 #toast.ok  { background:linear-gradient(135deg,#8da399,#6b8f82); }
 #toast.err { background:linear-gradient(135deg,#c0392b,#e74c3c); }
 #toast.ing { background:linear-gradient(135deg,#d4a373,#c99260); }
+#toast.warn { background:linear-gradient(135deg,#e0a458,#c9791f); }
 
 /* ── HEADER ────────────────────────────────────── */
 .header {
@@ -312,11 +313,14 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .section-label::after { content:''; flex:1; height:1px; background:var(--gold-lighter); }
 
+/* 賓客資訊欄位容器：間距比照「登記項目」(.toggle-list) 的 gap，讓兩區塊視覺上一致 */
+.guest-info-fields { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
+
 /* 修改座位人數區 */
 .edit-row {
   display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
+  border-radius:var(--radius); padding:14px 16px;
 }
 .edit-label { font-size:14px; color:var(--text-mid); flex:1; }
 .seat-ctrl { display:flex; align-items:center; gap:10px; }
@@ -331,7 +335,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-edit-row {
   display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
+  border-radius:var(--radius); padding:14px 16px;
   transition:border-color .15s;
 }
 .table-edit-row:focus-within { border-color:var(--gold-light); }
@@ -341,14 +345,29 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
   width:140px; text-align:right;
 }
-/* 桌次成員展開按鈕（所有小卡都顯示） */
+/* 桌次成員展開按鈕（所有小卡都顯示，樣式比照其他欄位方框）*/
 .table-expand-toggle {
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  font-size:11.5px; color:var(--gold-dark); cursor:pointer; user-select:none;
-  padding:8px 4px; margin:-14px 0 18px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:rgba(255,255,255,.85); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px 16px;
+  font-size:14px; color:var(--gold-dark); cursor:pointer; user-select:none; transition:all .15s;
 }
-.table-expand-toggle:hover { color:var(--gold); }
-.table-expand-toggle .cat-collapse-arrow { font-size:9px; color:var(--green); transition:transform .15s; }
+.table-expand-toggle:hover { background:#FDF4E3; border-color:var(--gold-light); }
+.table-expand-toggle .cat-collapse-arrow { font-size:11px; color:var(--green); transition:transform .15s; }
+
+/* 桌次／人數手動調整後的警告（取代展開按鈕的位置）*/
+.table-edit-warning {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  background:rgba(224,164,88,.14); border:1px solid #e0a458;
+  border-radius:var(--radius); padding:14px 16px;
+  font-size:12.5px; color:#9a5d1f; line-height:1.6;
+}
+.member-reset-btn-inline {
+  flex-shrink:0; padding:7px 14px; border-radius:20px; border:1px solid #e0a458;
+  background:#fff; color:#9a5d1f; font-size:11.5px; cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif; transition:all .15s; white-space:nowrap;
+}
+.member-reset-btn-inline:hover { background:#e0a458; color:#fff; }
 
 .toggle-list { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
 .toggle-item {
@@ -402,21 +421,18 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .add-input::placeholder { color:var(--text-light); }
 .add-hint { font-size:10.5px; color:var(--text-light); margin-top:5px; line-height:1.5; }
 
-/* ── 賓客資訊（兒童／素食，可於登記視窗現場修改）───── */
-.guest-info-block {
-  background:rgba(141,163,153,.08); border:1px solid var(--green-light);
-  border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
-  display:flex; flex-direction:column; gap:10px;
-}
-.guest-info-row { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:14px; min-height:34px; }
-.guest-info-row .gi-label { color:var(--text-mid); flex-shrink:0; }
-.guest-info-row .gi-val { color:var(--text); font-weight:500; text-align:right; }
-
 /* ── 成員桌次（於登記視窗內展開後個別編輯）───── */
 .member-edit-block {
   background:rgba(255,255,255,.85); border:1px solid var(--border);
-  border-radius:var(--radius); padding:4px 16px; margin-bottom:8px;
+  border-radius:var(--radius); padding:4px 16px;
 }
+.member-reset-btn {
+  width:100%; margin:6px 0 12px; padding:10px; border-radius:10px;
+  border:1px dashed var(--border); background:transparent;
+  font-size:12.5px; color:var(--text-mid); cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif; transition:all .15s;
+}
+.member-reset-btn:hover { border-color:var(--gold-light); color:var(--gold-dark); background:rgba(255,255,255,.6); }
 .member-edit-row {
   display:flex; align-items:center; gap:10px; padding:11px 0;
   border-bottom:1px solid var(--border);
@@ -657,7 +673,7 @@ body { padding-bottom:82px; }
         <div class="stat-entry-label">更多總覽</div>
       </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊賓客人數＝每組報到人所攜同出席之大人；喜餅＝份數；點擊卡片可查看詳細名單</div>
+    <div class="group-note" style="margin-top:10px;">＊大人人數（含攜伴）＝每組報到人所攜同出席之總人數，不含兒童；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -726,44 +742,52 @@ body { padding-bottom:82px; }
     </div>
     <div class="modal-body">
       <div class="section-label">賓客資訊</div>
-      <div class="table-edit-row">
-        <span class="table-edit-label">🪑 桌次（自動彙整）</span>
-        <input class="table-edit-input" id="edit-table" placeholder="例：T3 或 T3、T5" />
-      </div>
-      <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
-        <span>展開／收合各成員桌次明細</span>
-        <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
-      </div>
-      <div class="member-edit-block" id="member-edit-block" style="display:none;margin-bottom:20px;"></div>
-
-      <div class="edit-row" style="margin-bottom:20px;">
-        <span class="edit-label">👥 大人</span>
-        <div class="seat-ctrl">
-          <button class="seat-btn" onclick="changeSeat(-1)">−</button>
-          <span class="seat-num" id="seat-display">1</span>
-          <button class="seat-btn" onclick="changeSeat(1)">＋</button>
+      <div class="guest-info-fields">
+        <div class="table-edit-row">
+          <span class="table-edit-label">🪑 桌次（自動彙整明細）</span>
+          <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
         </div>
-      </div>
 
-      <div class="guest-info-block" id="guest-info-block" style="display:none;">
-        <div class="guest-info-row">
-          <span class="gi-label">🍼 兒童</span>
+        <div class="edit-row">
+          <span class="edit-label">👥 大人</span>
+          <div class="seat-ctrl">
+            <button class="seat-btn" onclick="changeSeat(-1)">−</button>
+            <span class="seat-num" id="seat-display">1</span>
+            <button class="seat-btn" onclick="changeSeat(1)">＋</button>
+          </div>
+        </div>
+
+        <div class="edit-row" id="child-row" style="display:none;">
+          <span class="edit-label">🍼 兒童</span>
           <div class="seat-ctrl">
             <button class="seat-btn" onclick="changeChild(-1)">−</button>
             <span class="seat-num" id="child-display">0</span>
             <button class="seat-btn" onclick="changeChild(1)">＋</button>
           </div>
         </div>
-        <div class="guest-info-row">
-          <span class="gi-label">🥗 素食</span>
+
+        <div class="edit-row" id="veg-row" style="display:none;">
+          <span class="edit-label">🥗 素食</span>
           <div class="seat-ctrl">
             <button class="seat-btn" onclick="changeVeg(-1)">−</button>
             <span class="seat-num" id="veg-display">0</span>
             <button class="seat-btn" onclick="changeVeg(1)">＋</button>
           </div>
         </div>
-      </div>
 
+        <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
+          <span>展開／收合各成員桌次明細</span>
+          <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
+        </div>
+        <div class="table-edit-warning" id="table-edit-warning" style="display:none;">
+          <span>⚠️ 已調整人數或手動修改桌次，不再顯示成員桌次明細。桌次修改方式：若分坐多桌請用「、」分隔並標註人數，例如：3桌x2、5桌x1（3桌2位、5桌1位）。</span>
+          <button type="button" class="member-reset-btn-inline" onclick="resetGuestInfo()">↺ 還原為預設</button>
+        </div>
+        <div class="member-edit-block" id="member-edit-block" style="display:none;">
+          <div id="member-edit-rows"></div>
+          <button type="button" class="member-reset-btn" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
+        </div>
+      </div>
       <div class="section-label">登記項目</div>
       <div class="toggle-list">
         <div class="toggle-item static-row">
@@ -806,13 +830,13 @@ body { padding-bottom:82px; }
       </div>
       <div class="add-field">
         <label class="add-label">桌次</label>
-        <input class="add-input" id="add-table" placeholder="例：T3 或 T3、T5" />
-        <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，例如：T3x2、T5x2</div>
+        <input class="add-input" id="add-table" placeholder="例：3桌 或 3桌、5桌" />
+        <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，例如：3桌x2、5桌x2</div>
       </div>
       <div class="add-field">
-        <label class="add-label">大人</label>
+        <label class="add-label">大人人數（含攜伴）</label>
         <input class="add-input" type="number" id="add-seats" placeholder="1" min="1" value="1" />
-        <div class="add-hint">包含本人與所攜伴人數，不含兒童</div>
+        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
@@ -878,6 +902,8 @@ const records = {};
 let curGuestId = null, curGroupId = null, curCategory = null, categoryOrigin = 'home';
 let curSeats = 1, curVegQty = 0, curChildQty = 0, togState = {cake:false,checkin:false,jar:false};
 let memberEditExpanded = false;
+let tableManuallyEdited = false;   // 是否已手動調整過桌次／人數（觸發後隱藏成員明細展開功能）
+let originalGuestSnapshot = null;  // 開啟登記視窗當下的原始資料快照，供「還原賓客資料為預設」使用
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
@@ -940,6 +966,30 @@ function formatTableDisplay(tableStr) {
   if (!raw) return '';
   return raw.split(/[、,，]/).map(s => s.trim().replace(/[xX×\*]\d+$/, '')).filter(Boolean).join('、');
 }
+
+// 檢查「桌次」欄位裡明確標註的人數（x2、x3…）加總，是否與「大人」人數不符：
+// ・完全沒有標註 x 人數 → 無法判斷，不提醒（系統會自動平均分配，屬正常情況）
+// ・每一桌都有標註 → 總和必須等於大人人數，否則提醒
+// ・只有部分桌次有標註 → 只有在「已標註的總和」就超過大人人數時才提醒
+//   （其餘未標註的桌次原本就是拿剩餘人數，本來就會自動吸收，不算異常）
+// 回傳 null 代表沒有需要提醒的問題；否則回傳已標註的總人數，供警告訊息使用
+function tableStringSeatMismatch(tableStr, adultSeats) {
+  const raw = (tableStr || '').trim();
+  if (!raw) return null;
+  const parts = raw.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+
+  let specifiedTotal = 0;
+  let allSpecified = true;
+  parts.forEach(p => {
+    const m = p.match(/^(.+?)[xX×\*](\d+)$/);
+    if (m) specifiedTotal += Math.max(parseInt(m[2], 10) || 0, 0);
+    else allSpecified = false;
+  });
+
+  if (allSpecified) return specifiedTotal !== adultSeats ? specifiedTotal : null;
+  return specifiedTotal > adultSeats ? specifiedTotal : null;
+}
 function rec(id) {
   if (!records[id]) records[id] = {amount:null,cake:false,cakeQty:0,jar:false,jarQty:0,checkin:false,envNo:null,vegQty:'',baby:'',updatedAt:null};
   return records[id];
@@ -979,7 +1029,7 @@ function recomputeAggregateTable(gu) {
 }
 
 function renderMemberEdit(gu) {
-  const block = document.getElementById('member-edit-block');
+  const block = document.getElementById('member-edit-rows');
   block.innerHTML = gu.members.map((m, idx) => {
     const label = m.name || gu.name;
     const aliasHtml = m.alias ? `<div class="mn-alias">${escapeHtml(m.alias)}</div>` : '';
@@ -1004,23 +1054,88 @@ function updateTableSummaryDisplay(gu) {
   el.value = gu.table || '';
 }
 
-// ── 展開／收合「各成員桌次明細」（所有小卡都提供）───
+// ── 展開／收合「各成員桌次明細」（所有小卡都提供，手動調整過桌次／人數後停用）───
 function toggleMemberEdit() {
+  if (tableManuallyEdited) return;
   memberEditExpanded = !memberEditExpanded;
   document.getElementById('member-edit-block').style.display = memberEditExpanded ? 'block' : 'none';
   document.getElementById('table-expand-arrow').textContent  = memberEditExpanded ? '▾' : '▸';
+}
+
+// 依 tableManuallyEdited 狀態，切換「展開按鈕」與「警告訊息」的顯示；
+// 一旦標記為已手動調整，順便收合並隱藏成員明細（避免顯示已經過時、與彙總欄位對不上的資料）
+function updateTableEditUiState() {
+  const btn  = document.getElementById('table-expand-toggle');
+  const warn = document.getElementById('table-edit-warning');
+  if (tableManuallyEdited) {
+    btn.style.display  = 'none';
+    warn.style.display = 'flex';
+    memberEditExpanded = false;
+    document.getElementById('member-edit-block').style.display = 'none';
+    document.getElementById('table-expand-arrow').textContent  = '▸';
+  } else {
+    btn.style.display  = 'flex';
+    warn.style.display = 'none';
+  }
+}
+
+// 直接修改上方「桌次」欄位，或調整「大人」人數時呼叫：
+// 成員明細一旦與彙總欄位脫鉤就不再可靠，因此停用展開功能並提醒使用者
+// （只在第一次觸發時跳出提示，避免每打一個字或每點一次 +/- 都跳一次）
+function markTableManuallyEdited() {
+  if (tableManuallyEdited) return;
+  tableManuallyEdited = true;
+  updateTableEditUiState();
+  showToast('⚠️ 已停用成員桌次明細，請直接調整桌次與人數（例：3桌x2、5桌x1）', 'warn', 4800);
+}
+
+// 「還原賓客資料為預設」：把桌次／人數／兒童／素食／成員明細全部還原成
+// 這次開啟登記視窗當下（尚未手動調整前）的資料，並重新啟用成員明細展開功能
+function resetGuestInfo() {
+  const gu = allGuests().find(x => x.id === curGuestId);
+  if (!gu || !originalGuestSnapshot) return;
+
+  gu.table      = originalGuestSnapshot.table;
+  gu.seats      = originalGuestSnapshot.seats;
+  gu.vegQty     = originalGuestSnapshot.vegQty;
+  gu.childChair = originalGuestSnapshot.childChair;
+  gu.members    = JSON.parse(JSON.stringify(originalGuestSnapshot.members));
+
+  curSeats    = originalGuestSnapshot.seats;
+  curVegQty   = originalGuestSnapshot.vegQty;
+  curChildQty = originalGuestSnapshot.childQty;
+
+  document.getElementById('edit-table').value = gu.table || '';
+  document.getElementById('seat-display').textContent = curSeats;
+  if (!gu.isNew) {
+    document.getElementById('veg-display').textContent   = curVegQty;
+    document.getElementById('child-display').textContent = curChildQty;
+  }
+
+  tableManuallyEdited = false;
+  updateTableEditUiState();
+  // 還原後直接展開明細，方便現場立刻確認資料已經復原
+  memberEditExpanded = true;
+  document.getElementById('member-edit-block').style.display = 'block';
+  document.getElementById('table-expand-arrow').textContent  = '▾';
+  renderMemberEdit(gu);
+  refreshModalMetaTable(gu);
+
+  showToast('↺ 已還原賓客資料為預設', 'ok', 2200);
 }
 
 // ── 素食人數（現場可直接調整）─────────────────────
 function changeVeg(delta) {
   curVegQty = Math.max(0, curVegQty + delta);
   document.getElementById('veg-display').textContent = curVegQty;
+  showToast('🥗 已調整素食人數，請告知總召', 'warn', 3000);
 }
 
 // ── 兒童人數（現場可直接調整）─────────────────────
 function changeChild(delta) {
   curChildQty = Math.max(0, curChildQty + delta);
   document.getElementById('child-display').textContent = curChildQty;
+  showToast('🍼 已調整兒童人數，請告知總召', 'warn', 3000);
 }
 
 // 兒童欄位在「賓客名單」可能填數字，也可能填文字（例如「1位」「有」）；
@@ -1809,12 +1924,25 @@ function openModal(gid) {
   document.getElementById('edit-envno').value = (r.envNo !== null && r.envNo !== undefined) ? r.envNo : '';
 
   // 桌次：上方欄位一律可直接編輯（自動彙整明細，亦可手動修改）；
-  // 所有小卡都提供展開按鈕，可逐一編輯每位成員的桌次（單一成員也一樣）
+  // 所有小卡都提供展開按鈕，可逐一編輯每位成員的桌次（單一成員也一樣）；
+  // 手動調整過桌次／人數後會停用此功能（見 markTableManuallyEdited）
   document.getElementById('edit-table').value = gu.table || '';
   memberEditExpanded = false;
   document.getElementById('member-edit-block').style.display = 'none';
   document.getElementById('table-expand-arrow').textContent  = '▸';
   ensureMembers(gu);
+
+  // 記錄這次開啟登記視窗當下的原始資料，供「還原賓客資料為預設」使用
+  originalGuestSnapshot = {
+    table: gu.table,
+    seats: gu.seats,
+    vegQty: gu.vegQty || 0,
+    childQty: curChildQty,
+    childChair: gu.childChair,
+    members: JSON.parse(JSON.stringify(gu.members))
+  };
+  tableManuallyEdited = false;
+  updateTableEditUiState();
   renderMemberEdit(gu);
 
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gid));
@@ -1823,18 +1951,21 @@ function openModal(gid) {
     `<span class="meta-pill">${gp.name}</span>` +
     `<span class="meta-pill">桌次 ${gu.table ? formatTableDisplay(gu.table) : '—'}</span>` +
     (split ? `<span class="meta-pill">🔀 分桌</span>` : '') +
-    `<span class="meta-pill">${gu.seats} 位（含攜伴）</span>`;
+    `<span class="meta-pill">${curSeats} 位（含攜伴）</span>`;
   document.getElementById('m-updated').textContent =
     r.updatedAt ? `上次更新：${r.updatedAt}` : '';
 
-  // 賓客資訊（兒童／素食）：可於登記視窗現場直接以加減按鈕調整；現場新增賓客沒有此區塊
-  const infoBlockEl = document.getElementById('guest-info-block');
+  // 賓客資訊（兒童／素食）：可於登記視窗現場直接以加減按鈕調整；現場新增賓客沒有這兩個欄位
+  const childRowEl = document.getElementById('child-row');
+  const vegRowEl   = document.getElementById('veg-row');
   if (!gu.isNew) {
     document.getElementById('child-display').textContent = curChildQty;
     document.getElementById('veg-display').textContent = curVegQty;
-    infoBlockEl.style.display = 'flex';
+    childRowEl.style.display = 'flex';
+    vegRowEl.style.display = 'flex';
   } else {
-    infoBlockEl.style.display = 'none';
+    childRowEl.style.display = 'none';
+    vegRowEl.style.display = 'none';
   }
 
   renderToggles();
@@ -1844,37 +1975,9 @@ function openModal(gid) {
 function changeSeat(delta) {
   curSeats = Math.max(1, curSeats + delta);
   document.getElementById('seat-display').textContent = curSeats;
-  syncMembersSeatsTotal();
-}
-
-// 上方「大人」人數變動時，展開明細（下拉式選單）裡的成員人數要一起跟著變，
-// 桌次彙總欄位也要重新計算（因為各桌人數是依成員人數加總出來的）：
-// ・只有一位成員：直接把人數設為目前的總數
-// ・有多位真實成員：把差額加/減在「最後一位」成員身上；若要扣的比最後一位還多，
-//   就繼續往前一位扣，每位成員的人數最少維持 0（不會出現負數）
-function syncMembersSeatsTotal() {
   const gu = allGuests().find(x => x.id === curGuestId);
-  if (!gu || !Array.isArray(gu.members) || gu.members.length === 0) return;
-
-  const curTotal = gu.members.reduce((s, m) => s + (m.seats || 0), 0);
-  let diff = curSeats - curTotal;
-  if (diff === 0) return;
-
-  if (diff > 0) {
-    const last = gu.members[gu.members.length - 1];
-    last.seats = (last.seats || 0) + diff;
-  } else {
-    let remaining = -diff;
-    for (let i = gu.members.length - 1; i >= 0 && remaining > 0; i--) {
-      const take = Math.min(gu.members[i].seats || 0, remaining);
-      gu.members[i].seats -= take;
-      remaining -= take;
-    }
-  }
-
-  recomputeAggregateTable(gu);
-  renderMemberEdit(gu);       // 重新畫出展開明細（含每位成員最新的人數與彙總欄位）
-  refreshModalMetaTable(gu);  // 同步更新最上方的桌次／人數資訊
+  if (gu) refreshModalMetaTable(gu);
+  markTableManuallyEdited();
 }
 
 function toggle(key) {
@@ -1919,13 +2022,25 @@ function save() {
   }
   r.updatedAt = new Date().toLocaleString('zh-TW');
 
+  // 桌次登記人數與大人人數是否吻合（僅提醒，不擋下傳送）
+  const mismatch = tableStringSeatMismatch(gu.table, gu.seats);
+  const gidToSync = curGuestId;
+
   closeModal();
-  const g = GROUPS.find(x => x.guests.some(gu => gu.id === curGuestId));
+  const g = GROUPS.find(x => x.guests.some(gu => gu.id === gidToSync));
   if (g) renderGuests(g.guests);
   if (document.getElementById('tables-page').classList.contains('active'))   renderTables();
   if (document.getElementById('category-page').classList.contains('active') && curCategory) renderCategoryPage(curCategory);
   refreshStats(); renderGroups();
-  syncOne(curGuestId);
+
+  if (mismatch !== null) {
+    // 先跳出警告，讓使用者看得到；資料仍會照常送出，只是延後一點再觸發同步的 Toast，
+    // 避免「同步中…」的訊息立刻蓋掉這則警告
+    showToast(`⚠️ 桌次登記人數（${mismatch}）與大人人數（${gu.seats}）不符，已為您送出`, 'warn', 3200);
+    setTimeout(() => syncOne(gidToSync), 2600);
+  } else {
+    syncOne(gidToSync);
+  }
 }
 
 function closeModal() { document.getElementById('modal-wrap').classList.remove('open'); }
