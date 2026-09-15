@@ -333,18 +333,20 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .seat-btn:hover { background:var(--gold-lighter); border-color:var(--gold-light); color:var(--gold-dark); }
 .seat-num { font-size:16px; font-weight:500; color:var(--text); min-width:20px; text-align:center; }
 .table-edit-row {
-  display:flex; align-items:center; gap:10px;
+  display:flex; flex-direction:column; gap:6px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
   border-radius:var(--radius); padding:14px 16px;
   transition:border-color .15s;
 }
 .table-edit-row:focus-within { border-color:var(--gold-light); }
+.table-edit-row-main { display:flex; align-items:center; gap:10px; }
 .table-edit-label { font-size:14px; color:var(--text-mid); flex:1; }
 .table-edit-input {
   border:none; background:transparent; font-size:14px; font-weight:500;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
   width:140px; text-align:right;
 }
+.table-edit-hint { font-size:10.5px; color:var(--text-light); line-height:1.5; }
 /* 桌次成員展開按鈕（所有小卡都顯示，樣式比照其他欄位方框）*/
 .table-expand-toggle {
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -354,20 +356,10 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .table-expand-toggle:hover { background:#FDF4E3; border-color:var(--gold-light); }
 .table-expand-toggle .cat-collapse-arrow { font-size:11px; color:var(--green); transition:transform .15s; }
-
-/* 桌次／人數手動調整後的警告（取代展開按鈕的位置）*/
-.table-edit-warning {
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-  background:rgba(224,164,88,.14); border:1px solid #e0a458;
-  border-radius:var(--radius); padding:14px 16px;
-  font-size:12.5px; color:#9a5d1f; line-height:1.6;
-}
-.member-reset-btn-inline {
-  flex-shrink:0; padding:7px 14px; border-radius:20px; border:1px solid #e0a458;
-  background:#fff; color:#9a5d1f; font-size:11.5px; cursor:pointer;
-  font-family:'Noto Sans TC',sans-serif; transition:all .15s; white-space:nowrap;
-}
-.member-reset-btn-inline:hover { background:#e0a458; color:#fff; }
+/* 手動調整過桌次／人數後：同一個方框改為「還原賓客資料為預設」的入口，
+   不再另外顯示一整排警告文字（太長容易被切掉看不完整），改用簡短的顏色提示 */
+.table-expand-toggle.is-reset { color:#9a5d1f; border-color:#e0a458; background:rgba(224,164,88,.12); }
+.table-expand-toggle.is-reset:hover { background:rgba(224,164,88,.22); }
 
 .toggle-list { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
 .toggle-item {
@@ -744,8 +736,11 @@ body { padding-bottom:82px; }
       <div class="section-label">賓客資訊</div>
       <div class="guest-info-fields">
         <div class="table-edit-row">
-          <span class="table-edit-label">🪑 桌次（自動彙整明細）</span>
-          <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
+          <div class="table-edit-row-main">
+            <span class="table-edit-label">🪑 桌次（自動彙整明細）</span>
+            <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
+          </div>
+          <div class="table-edit-hint">分坐多桌請用「、」分隔，可標註人數，例如：3桌x2、5桌x1</div>
         </div>
 
         <div class="edit-row">
@@ -776,12 +771,8 @@ body { padding-bottom:82px; }
         </div>
 
         <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
-          <span>展開／收合各成員桌次明細</span>
+          <span id="table-expand-toggle-label">展開／收合各成員桌次明細</span>
           <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
-        </div>
-        <div class="table-edit-warning" id="table-edit-warning" style="display:none;">
-          <span>⚠️ 已調整人數或手動修改桌次，不再顯示成員桌次明細。桌次修改方式：若分坐多桌請用「、」分隔並標註人數，例如：3桌x2、5桌x1（3桌2位、5桌1位）。</span>
-          <button type="button" class="member-reset-btn-inline" onclick="resetGuestInfo()">↺ 還原為預設</button>
         </div>
         <div class="member-edit-block" id="member-edit-block" style="display:none;">
           <div id="member-edit-rows"></div>
@@ -1054,28 +1045,34 @@ function updateTableSummaryDisplay(gu) {
   el.value = gu.table || '';
 }
 
-// ── 展開／收合「各成員桌次明細」（所有小卡都提供，手動調整過桌次／人數後停用）───
+// ── 展開／收合「各成員桌次明細」（所有小卡都提供）───
+// 手動調整過桌次／人數後，同一個方框會改為「還原賓客資料為預設」的入口（見 updateTableEditUiState）
 function toggleMemberEdit() {
-  if (tableManuallyEdited) return;
+  if (tableManuallyEdited) { resetGuestInfo(); return; }
   memberEditExpanded = !memberEditExpanded;
   document.getElementById('member-edit-block').style.display = memberEditExpanded ? 'block' : 'none';
   document.getElementById('table-expand-arrow').textContent  = memberEditExpanded ? '▾' : '▸';
 }
 
-// 依 tableManuallyEdited 狀態，切換「展開按鈕」與「警告訊息」的顯示；
-// 一旦標記為已手動調整，順便收合並隱藏成員明細（避免顯示已經過時、與彙總欄位對不上的資料）
+// 依 tableManuallyEdited 狀態，切換「展開／收合明細」方框的文字與樣式：
+// 手動調整過之後，不再另外顯示一整排警告文字（太長，畫面容易顯示不完整），
+// 改成直接把同一個方框變成「還原賓客資料為預設」的按鈕（樣式改為警示色），
+// 並收合、隱藏已經與彙總欄位對不上的成員明細
 function updateTableEditUiState() {
-  const btn  = document.getElementById('table-expand-toggle');
-  const warn = document.getElementById('table-edit-warning');
+  const btn   = document.getElementById('table-expand-toggle');
+  const label = document.getElementById('table-expand-toggle-label');
+  const arrow = document.getElementById('table-expand-arrow');
   if (tableManuallyEdited) {
-    btn.style.display  = 'none';
-    warn.style.display = 'flex';
+    btn.classList.add('is-reset');
+    label.textContent = '↺ 已手動調整，點此還原賓客資料為預設';
+    arrow.style.display = 'none';
     memberEditExpanded = false;
     document.getElementById('member-edit-block').style.display = 'none';
-    document.getElementById('table-expand-arrow').textContent  = '▸';
   } else {
-    btn.style.display  = 'flex';
-    warn.style.display = 'none';
+    btn.classList.remove('is-reset');
+    label.textContent = '展開／收合各成員桌次明細';
+    arrow.style.display = '';
+    arrow.textContent = memberEditExpanded ? '▾' : '▸';
   }
 }
 
