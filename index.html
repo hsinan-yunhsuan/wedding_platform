@@ -657,7 +657,7 @@ body { padding-bottom:82px; }
         <div class="stat-entry-label">更多總覽</div>
       </div>
     </div>
-    <div class="group-note" style="margin-top:10px;">＊大人人數（含攜伴）＝每組報到人所攜同出席之總人數，不含兒童；喜餅＝份數；點擊卡片可查看詳細名單</div>
+    <div class="group-note" style="margin-top:10px;">＊賓客人數＝每組報到人所攜同出席之大人；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
     <button class="quick-nav-btn" onclick="showTablesPage()">🪑&nbsp; 查看每桌報到狀況</button>
@@ -727,7 +727,7 @@ body { padding-bottom:82px; }
     <div class="modal-body">
       <div class="section-label">賓客資訊</div>
       <div class="table-edit-row">
-        <span class="table-edit-label">🪑 桌次（自動彙整明細）</span>
+        <span class="table-edit-label">🪑 桌次（自動彙整）</span>
         <input class="table-edit-input" id="edit-table" placeholder="例：T3 或 T3、T5" />
       </div>
       <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
@@ -810,9 +810,9 @@ body { padding-bottom:82px; }
         <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，例如：T3x2、T5x2</div>
       </div>
       <div class="add-field">
-        <label class="add-label">大人人數（含攜伴）</label>
+        <label class="add-label">大人</label>
         <input class="add-input" type="number" id="add-seats" placeholder="1" min="1" value="1" />
-        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童</div>
+        <div class="add-hint">包含本人與所攜伴人數，不含兒童</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
