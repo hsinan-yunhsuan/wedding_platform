@@ -1077,13 +1077,10 @@ function updateTableEditUiState() {
 }
 
 // 直接修改上方「桌次」欄位，或調整「大人」人數時呼叫：
-// 成員明細一旦與彙總欄位脫鉤就不再可靠，因此停用展開功能並提醒使用者
-// （只在第一次觸發時跳出提示，避免每打一個字或每點一次 +/- 都跳一次）
+// 依原本說法維持「展開／收合各成員桌次明細」方框不變（不轉為「還原賓客資料為預設」樣式），
+// 也不跳出提示訊息——警告訊息只保留給「人數異常」的情況（見 save() 內 tableStringSeatMismatch 的判斷）
 function markTableManuallyEdited() {
-  if (tableManuallyEdited) return;
-  tableManuallyEdited = true;
-  updateTableEditUiState();
-  showToast('⚠️ 已停用成員桌次明細，請直接調整桌次與人數（例：3桌x2、5桌x1）', 'warn', 4800);
+  // 目前不再因手動調整桌次／人數而停用展開功能或改變方框樣式
 }
 
 // 「還原賓客資料為預設」：把桌次／人數／兒童／素食／成員明細全部還原成
