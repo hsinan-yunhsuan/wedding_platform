@@ -358,8 +358,23 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-expand-toggle .cat-collapse-arrow { font-size:11px; color:var(--green); transition:transform .15s; }
 /* 手動調整過桌次／人數後：同一個方框改為「還原賓客資料為預設」的入口，
    不再另外顯示一整排警告文字（太長容易被切掉看不完整），改用簡短的顏色提示 */
-.table-expand-toggle.is-reset { color:#9a5d1f; border-color:#e0a458; background:rgba(224,164,88,.12); }
-.table-expand-toggle.is-reset:hover { background:rgba(224,164,88,.22); }
+.table-expand-toggle.is-reset {
+  flex-direction:column; align-items:stretch; text-align:center;
+  color:#6b5c50; border-color:var(--border); background:rgba(224,164,88,.08);
+  padding:12px 14px;
+}
+.table-expand-toggle.is-reset:hover { background:rgba(224,164,88,.14); }
+.table-expand-toggle.is-reset #table-expand-toggle-label {
+  display:flex; flex-direction:column; align-items:center; gap:8px; width:100%;
+}
+.reset-hint { font-size:12px; color:#6b5c50; line-height:1.5; }
+.reset-action {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  border:1px dashed rgba(212,163,115,.6); background:transparent;
+  color:var(--gold-dark); font-weight:500; font-size:12.5px;
+  padding:5px 14px; border-radius:8px; transition:all .15s;
+}
+.table-expand-toggle.is-reset:hover .reset-action { border-color:var(--gold-light); background:rgba(255,255,255,.6); }
 
 .toggle-list { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
 .toggle-item {
@@ -733,6 +748,25 @@ body { padding-bottom:82px; }
       <div class="modal-updated" id="m-updated"></div>
     </div>
     <div class="modal-body">
+      <div class="section-label">登記項目</div>
+      <div class="toggle-list">
+        <div class="toggle-item static-row">
+          <span class="toggle-text">🧧 紅包編號</span>
+          <input class="envno-input" type="text" id="edit-envno" placeholder="可填寫文字或多筆編號" />
+        </div>
+        <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
+          <span class="toggle-text">🎁 喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
+          <div class="toggle-circle" id="chk-cake">✓</div>
+        </div>
+        <div class="toggle-item hidden" id="tog-jar" onclick="toggle('jar')">
+          <span class="toggle-text">🏺 領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
+          <div class="toggle-circle" id="chk-jar">✓</div>
+        </div>
+        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
+          <span class="toggle-text">✅ 已到</span>
+          <div class="toggle-circle" id="chk-checkin">✓</div>
+        </div>
+      </div>
       <div class="section-label">賓客資訊</div>
       <div class="guest-info-fields">
         <div class="table-edit-row">
@@ -777,25 +811,6 @@ body { padding-bottom:82px; }
         <div class="member-edit-block" id="member-edit-block" style="display:none;">
           <div id="member-edit-rows"></div>
           <button type="button" class="member-reset-btn" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
-        </div>
-      </div>
-      <div class="section-label">登記項目</div>
-      <div class="toggle-list">
-        <div class="toggle-item static-row">
-          <span class="toggle-text">🧧 紅包編號</span>
-          <input class="envno-input" type="text" id="edit-envno" placeholder="可填寫文字或多筆編號" />
-        </div>
-        <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
-          <span class="toggle-text">🎁 喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
-          <div class="toggle-circle" id="chk-cake">✓</div>
-        </div>
-        <div class="toggle-item hidden" id="tog-jar" onclick="toggle('jar')">
-          <span class="toggle-text">🏺 領取喜宴甕<span class="toggle-qty" id="jar-qty-label"></span></span>
-          <div class="toggle-circle" id="chk-jar">✓</div>
-        </div>
-        <div class="toggle-item" id="tog-checkin" onclick="toggle('checkin')">
-          <span class="toggle-text">✅ 已到</span>
-          <div class="toggle-circle" id="chk-checkin">✓</div>
         </div>
       </div>
     </div>
@@ -1064,7 +1079,7 @@ function updateTableEditUiState() {
   const arrow = document.getElementById('table-expand-arrow');
   if (tableManuallyEdited) {
     btn.classList.add('is-reset');
-    label.textContent = '已停用成員桌次明細，請直接調整桌次與人數（↺ 點此還原賓客資料為預設）';
+    label.innerHTML = '<span class="reset-hint">因修改人數或桌次，已停用成員桌次明細</span><span class="reset-action">↺ 點此還原賓客資料為預設</span>';
     arrow.style.display = 'none';
     memberEditExpanded = false;
     document.getElementById('member-edit-block').style.display = 'none';
