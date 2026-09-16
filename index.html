@@ -908,8 +908,7 @@ const records = {};
 let curGuestId = null, curGroupId = null, curCategory = null, categoryOrigin = 'home';
 let curSeats = 1, curVegQty = 0, curChildQty = 0, togState = {cake:false,checkin:false,jar:false};
 let memberEditExpanded = false;
-let tableManuallyEdited = false;   // 是否已手動調整過桌次／人數（觸發後隱藏成員明細展開功能）
-let originalGuestSnapshot = null;  // 開啟登記視窗當下的原始資料快照，供「還原賓客資料為預設」使用
+let tableManuallyEdited = false;   // 目前登記視窗是否處於「已手動調整」狀態（開啟時由 isGuestManuallyEdited 算出）
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
@@ -1019,6 +1018,47 @@ function ensureMembers(gu) {
   return gu.members;
 }
 
+// ── 賓客「最一開始」資料快照（供「還原賓客資料為預設」與「是否已手動調整」判斷共用）──
+// 只在這台裝置第一次看到某筆賓客資料時建立一次，之後永遠不再覆蓋、不會被之後的任何
+// 修改或儲存動作更新，並存進 localStorage，讓「還原」永遠回到最原始的賓客名單資料，
+// 而不是「上次修改後的結果」；重新整理頁面或關掉再打開，也一樣能正確判斷。
+const ORIGINAL_SNAPSHOT_KEY = 'guestOriginalSnapshots_v1';
+let originalSnapshots = {};
+try { originalSnapshots = JSON.parse(localStorage.getItem(ORIGINAL_SNAPSHOT_KEY) || '{}'); } catch(e) { originalSnapshots = {}; }
+
+function persistOriginalSnapshots() {
+  try { localStorage.setItem(ORIGINAL_SNAPSHOT_KEY, JSON.stringify(originalSnapshots)); } catch(e) {}
+}
+
+// 建立某筆賓客的原始快照（若已存在就不動作，確保只會被寫入一次）
+function ensureOriginalSnapshot(gu) {
+  if (originalSnapshots[gu.id]) return;
+  ensureMembers(gu);
+  originalSnapshots[gu.id] = {
+    table: gu.table || '',
+    seats: gu.seats,
+    vegQty: gu.vegQty || 0,
+    childChair: gu.childChair || '',
+    members: JSON.parse(JSON.stringify(gu.members))
+  };
+}
+
+// 比對目前資料與原始快照，只要桌次、人數、素食、兒童、成員桌次明細任一項不同，
+// 就視為「已手動調整過」：停用展開明細、方框改為「還原賓客資料為預設」；
+// 這個狀態是即時比對出來的，不是另外存一個開關，所以無論是同一次操作內、
+// 儲存後重新打開登記視窗、甚至重新整理頁面，只要資料還沒被還原，就會持續維持這個狀態。
+function isGuestManuallyEdited(gu) {
+  const snap = originalSnapshots[gu.id];
+  if (!snap) return false;
+  ensureMembers(gu);
+  if ((gu.table || '') !== (snap.table || '')) return true;
+  if (gu.seats !== snap.seats) return true;
+  if ((gu.vegQty || 0) !== (snap.vegQty || 0)) return true;
+  if ((gu.childChair || '') !== (snap.childChair || '')) return true;
+  if (JSON.stringify(gu.members) !== JSON.stringify(snap.members)) return true;
+  return false;
+}
+
 // 依各成員目前的桌次，重新彙總出小卡上顯示用的桌次字串
 function recomputeAggregateTable(gu) {
   const byTable = {};
@@ -1102,20 +1142,21 @@ function markTableManuallyEdited() {
 }
 
 // 「還原賓客資料為預設」：把桌次／人數／兒童／素食／成員明細全部還原成
-// 這次開啟登記視窗當下（尚未手動調整前）的資料，並重新啟用成員明細展開功能
+// 這台裝置最一開始看到的賓客名單資料（見 originalSnapshots），並重新啟用成員明細展開功能
 function resetGuestInfo() {
   const gu = allGuests().find(x => x.id === curGuestId);
-  if (!gu || !originalGuestSnapshot) return;
+  const snap = originalSnapshots[curGuestId];
+  if (!gu || !snap) return;
 
-  gu.table      = originalGuestSnapshot.table;
-  gu.seats      = originalGuestSnapshot.seats;
-  gu.vegQty     = originalGuestSnapshot.vegQty;
-  gu.childChair = originalGuestSnapshot.childChair;
-  gu.members    = JSON.parse(JSON.stringify(originalGuestSnapshot.members));
+  gu.table      = snap.table;
+  gu.seats      = snap.seats;
+  gu.vegQty     = snap.vegQty;
+  gu.childChair = snap.childChair;
+  gu.members    = JSON.parse(JSON.stringify(snap.members));
 
-  curSeats    = originalGuestSnapshot.seats;
-  curVegQty   = originalGuestSnapshot.vegQty;
-  curChildQty = originalGuestSnapshot.childQty;
+  curSeats    = snap.seats;
+  curVegQty   = snap.vegQty;
+  curChildQty = childQtyNumeric(snap.childChair);
 
   document.getElementById('edit-table').value = gu.table || '';
   document.getElementById('seat-display').textContent = curSeats;
@@ -1326,6 +1367,11 @@ async function loadAll() {
 
     GROUPS = guestData.groups;
 
+    // 在套用「禮金記錄」的覆蓋值之前，先幫每筆賓客建立（僅第一次會真正寫入）最一開始的
+    // 原始快照，之後「還原賓客資料為預設」都以這份快照為準，不受之後任何修改影響
+    allGuests().forEach(gu => ensureOriginalSnapshot(gu));
+    persistOriginalSnapshots();
+
     if (recordData.records) {
       recordData.records.forEach(r => {
         const id = Number(r.id);
@@ -1350,9 +1396,11 @@ async function loadAll() {
           if (targetGroup) {
             const alreadyIn = targetGroup.guests.some(g => g.id === id);
             if (!alreadyIn) {
-              targetGroup.guests.push({
+              const newGu = {
                 id, name: r.name, table: r.table || '', seats: Number(r.seats) || 1, isNew: true
-              });
+              };
+              targetGroup.guests.push(newGu);
+              ensureOriginalSnapshot(newGu);
               if (id >= newGuestCounter) newGuestCounter = id; // 避免 id 衝突
             }
           }
@@ -1368,6 +1416,7 @@ async function loadAll() {
         }
       });
     }
+    persistOriginalSnapshots();
 
     renderGroups(); refreshStats();
     const overlay = document.getElementById('loading-overlay');
@@ -1528,12 +1577,11 @@ function renderGuests(guests) {
     const cakeIsNum = cakeQtyIsNumeric(gu.cakeQty);
     const cakeNote  = (!cakeIsNum && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
     const childNum  = childQtyNumeric(gu.childChair);
-    // 現場新增的小卡：只顯示桌次、大人、紅包編號、已到
+    // 現場新增的小卡：只顯示桌次、大人、紅包編號
     const detailRows = isNew ? [
       `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
       `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${gu.seats} 位</span></div>`,
       `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
-      `<div class="detail-row"><span class="detail-label">✅ 已到</span><span class="detail-val">${r.checkin ? '是' : '否'}</span></div>`,
     ].join('') : [
       `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
       `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${gu.seats} 位</span></div>`,
@@ -1944,16 +1992,15 @@ function openModal(gid) {
   document.getElementById('table-expand-arrow').textContent  = '▸';
   ensureMembers(gu);
 
-  // 記錄這次開啟登記視窗當下的原始資料，供「還原賓客資料為預設」使用
-  originalGuestSnapshot = {
-    table: gu.table,
-    seats: gu.seats,
-    vegQty: gu.vegQty || 0,
-    childQty: curChildQty,
-    childChair: gu.childChair,
-    members: JSON.parse(JSON.stringify(gu.members))
-  };
-  tableManuallyEdited = false;
+  // 保險：理論上 loadAll() 已經幫每筆賓客建立過原始快照，這裡再確認一次，
+  // 避免現場新增賓客或極少數例外情況下漏建快照
+  ensureOriginalSnapshot(gu);
+  persistOriginalSnapshots();
+
+  // 是否已手動調整過（桌次／人數／素食／兒童／成員明細，任一項與最一開始的快照不同）：
+  // 直接比對現在的資料與原始快照算出，因此無論是同一次操作內、儲存後重新打開，
+  // 或重新整理頁面，只要還沒「還原賓客資料為預設」，就會持續停用展開明細
+  tableManuallyEdited = isGuestManuallyEdited(gu);
   updateTableEditUiState();
   renderMemberEdit(gu);
 
@@ -2118,6 +2165,8 @@ async function saveNewGuest() {
   // 因此登記視窗與小卡都不會出現喜餅／兒童／素食欄位，也不會被算進喜餅總計
   const newGuest = {id:newId, name, table, seats, isNew:true, cakeQty:''};
   g.guests.push(newGuest);
+  ensureOriginalSnapshot(newGuest);
+  persistOriginalSnapshots();
   closeAddModal();
   renderGuests(g.guests);
   refreshStats(); renderGroups();
