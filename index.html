@@ -371,25 +371,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .table-expand-toggle:hover { background:#FDF4E3; border-color:var(--gold-light); }
 .table-expand-toggle .cat-collapse-arrow { font-size:11px; color:var(--green); transition:transform .15s; }
-/* 手動調整過桌次／人數後：同一個方框改為「還原賓客資料為預設」的入口，
-   不再另外顯示一整排警告文字(太長容易被切掉看不完整)，改用簡短的顏色提示 */
-.table-expand-toggle.is-reset {
-  flex-direction:column; align-items:stretch; text-align:center;
-  color:#6b5c50; border-color:var(--border); background:rgba(224,164,88,.08);
-  padding:12px 14px;
+/* 修改桌次／大人人數後：成員明細停用，方框變灰、不可點；還原統一由下方唯一的「還原賓客資料為預設」按鈕處理 */
+.table-expand-toggle.is-disabled {
+  cursor:default; color:var(--text-light); background:rgba(224,164,88,.08);
+  font-size:12.5px; line-height:1.5; justify-content:center; text-align:center;
 }
-.table-expand-toggle.is-reset:hover { background:rgba(224,164,88,.14); }
-.table-expand-toggle.is-reset #table-expand-toggle-label {
-  display:flex; flex-direction:column; align-items:center; gap:8px; width:100%;
-}
-.reset-hint { font-size:12px; color:#6b5c50; line-height:1.5; }
-.reset-action {
-  display:inline-flex; align-items:center; justify-content:center; gap:6px;
-  border:1px dashed rgba(212,163,115,.6); background:transparent;
-  color:var(--gold-dark); font-weight:500; font-size:12.5px;
-  padding:5px 14px; border-radius:8px; transition:all .15s;
-}
-.table-expand-toggle.is-reset:hover .reset-action { border-color:var(--gold-light); background:rgba(255,255,255,.6); }
+.table-expand-toggle.is-disabled #table-expand-toggle-label { flex:1; text-align:center; }
+.table-expand-toggle.is-disabled:hover { background:rgba(224,164,88,.08); border-color:var(--border); }
 
 .toggle-list { display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
 .toggle-item {
@@ -789,7 +777,7 @@ body { padding-bottom:82px; }
       <div class="guest-info-fields">
         <div class="table-edit-row">
           <div class="table-edit-row-main">
-            <span class="table-edit-label">🪑 桌次(自動)</span>
+            <span class="table-edit-label">🪑 桌次 (自動)</span>
             <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
           </div>
           <div class="table-edit-hint">可自動彙整，亦可手動調整，分坐多桌請用「、」分隔，可標註人數，例如：3桌x2、5桌x1</div>
@@ -830,16 +818,15 @@ body { padding-bottom:82px; }
 
         <div class="headcount-check" id="headcount-check" style="display:none;"></div>
 
-        <button type="button" class="member-reset-btn" id="guest-reset-btn" style="display:none;margin:0;" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
-
         <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
           <span id="table-expand-toggle-label">展開／收合各成員桌次明細</span>
           <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
         </div>
         <div class="member-edit-block" id="member-edit-block" style="display:none;">
           <div id="member-edit-rows"></div>
-          <button type="button" class="member-reset-btn" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
         </div>
+        <!-- 唯一的還原按鈕：放在「展開／收合」下方(不在展開區塊裡面)，桌次／大人／兒童／素食任何一項改過才會出現 -->
+        <button type="button" class="member-reset-btn" id="guest-reset-btn" style="display:none;margin:0;" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -1248,7 +1235,7 @@ function updateTableSummaryDisplay(gu) {
 // ── 展開／收合「各成員桌次明細」(所有小卡都提供)───
 // 手動調整過桌次／人數後，同一個方框會改為「還原賓客資料為預設」的入口(見 updateTableEditUiState)
 function toggleMemberEdit() {
-  if (tableManuallyEdited) { resetGuestInfo(); return; }
+  if (tableManuallyEdited) return;   // 成員明細已停用(改過桌次或大人)；還原請按下方的「還原賓客資料為預設」
   memberEditExpanded = !memberEditExpanded;
   document.getElementById('member-edit-block').style.display = memberEditExpanded ? 'block' : 'none';
   document.getElementById('table-expand-arrow').textContent  = memberEditExpanded ? '▾' : '▸';
@@ -1263,13 +1250,13 @@ function updateTableEditUiState() {
   const label = document.getElementById('table-expand-toggle-label');
   const arrow = document.getElementById('table-expand-arrow');
   if (tableManuallyEdited) {
-    btn.classList.add('is-reset');
-    label.innerHTML = '<span class="reset-hint">因修改大人人數或桌次，已停用成員桌次明細</span><span class="reset-action">↺ 點此還原賓客資料為預設</span>';
+    btn.classList.add('is-disabled');
+    label.textContent = '已停用成員桌次明細 (因修改大人人數或桌次)';
     arrow.style.display = 'none';
     memberEditExpanded = false;
     document.getElementById('member-edit-block').style.display = 'none';
   } else {
-    btn.classList.remove('is-reset');
+    btn.classList.remove('is-disabled');
     label.textContent = '展開／收合各成員桌次明細';
     arrow.style.display = '';
     arrow.textContent = memberEditExpanded ? '▾' : '▸';
@@ -1277,25 +1264,24 @@ function updateTableEditUiState() {
   updateResetButton();
 }
 
-// 「還原賓客資料為預設」的入口有兩種：
-//   ・改了桌次／大人人數 → 成員明細已停用，展開明細的方框直接變成還原按鈕(見上方)；
-//   ・只改了兒童／素食 → 成員明細仍可使用，改由這顆獨立按鈕還原。
-// 預設值 ＝ 這次載入時「賓客名單」分頁的資料(桌次、大人、兒童、素食)，不是上一次登記的結果。
+// 「還原賓客資料為預設」只有一顆按鈕(在「展開／收合各成員桌次明細」下方)，
+// 桌次、大人、兒童、素食任何一項與賓客名單的預設值不同時才會出現；
+// 預設值 ＝ 這次載入時「賓客名單」分頁的資料，不是上一次登記的結果。
 function updateResetButton() {
   const btn = document.getElementById('guest-reset-btn');
   if (!btn) return;
   const gu   = allGuests().find(x => x.id === curGuestId);
   const snap = originalSnapshots[curGuestId];
-  if (!gu || gu.isNew || !snap || tableManuallyEdited) { btn.style.display = 'none'; return; }
-  const vegChanged   = curVegQty   !== (snap.vegQty || 0);
-  const childChanged = curChildQty !== childQtyNumeric(snap.childChair);
-  btn.style.display = (vegChanged || childChanged) ? 'block' : 'none';
+  if (!gu || gu.isNew || !snap) { btn.style.display = 'none'; return; }
+  const tableSeatChanged = tableManuallyEdited || isGuestManuallyEdited(gu) || curSeats !== parseSeatsValue(snap.seats);
+  const vegChanged       = curVegQty   !== (snap.vegQty || 0);
+  const childChanged     = curChildQty !== childQtyNumeric(snap.childChair);
+  btn.style.display = (tableSeatChanged || vegChanged || childChanged) ? 'block' : 'none';
 }
 
 // 直接修改上方「桌次」欄位，或調整「大人」人數時呼叫：
-// 成員明細一旦與彙總欄位脫鉤就不再可靠，因此停用展開功能，方框文字改為
-// 「已停用成員桌次明細，請直接調整桌次與人數」並兼作「還原賓客資料為預設」的入口
-// (見 updateTableEditUiState)；不再另外跳出提示訊息
+// 成員明細一旦與彙總欄位脫鉤就不再可靠，因此停用展開功能(方框變灰，見 updateTableEditUiState)，
+// 並顯示下方唯一的「還原賓客資料為預設」按鈕；不另外跳出提示訊息
 function markTableManuallyEdited() {
   if (tableManuallyEdited) return;
   tableManuallyEdited = true;
@@ -1400,6 +1386,7 @@ function updateMemberTable(idx, value) {
   recomputeAggregateTable(gu);
   updateTableSummaryDisplay(gu);
   refreshModalMetaTable(gu);
+  updateResetButton();
 }
 
 // 修改成員桌次／人數後，同步更新登記視窗最上方的桌次資訊(不需等到「完成登記」)
@@ -1597,11 +1584,15 @@ async function loadAll() {
             }
           }
         }
-        // 兒童／素食：若曾在登記視窗現場修改過，「禮金記錄」裡的值覆蓋「賓客名單」原始資料
-        // (現場新增賓客沒有這兩欄資料來源，略過)
-        if (id < 9000 && (records[id].vegQty !== '' || records[id].baby !== '')) {
+        // 已送出過的資料優先於賓客名單：桌次、大人人數、兒童、素食若曾在登記視窗修改並送出，
+        // 下次載入就顯示送出後的資料(現場新增賓客沒有賓客名單來源，略過)。
+        // 原始快照在這之前已用賓客名單建立，所以「還原賓客資料為預設」仍會回到賓客名單的內容。
+        // 記錄的姓名和目前賓客名單對不上，代表名單調整過、編號位移了，這筆記錄不能套用。
+        if (id < 9000) {
           const gu = allGuests().find(x => x.id === id);
-          if (gu) {
+          if (gu && (!r.name || r.name === gu.name)) {
+            if (r.table) gu.table = r.table;
+            if (r.seats !== '' && r.seats !== undefined && r.seats !== null) gu.seats = parseSeatsValue(r.seats);
             if (records[id].vegQty !== '') gu.vegQty = Number(records[id].vegQty) || 0;
             if (records[id].baby   !== '') gu.childChair = records[id].baby;
           }
@@ -2249,6 +2240,7 @@ function openModal(gid) {
   document.getElementById('member-edit-block').style.display = 'none';
   document.getElementById('table-expand-arrow').textContent  = '▸';
   ensureMembers(gu);
+  modalOpenState = { id: gu.id, table: gu.table, seats: gu.seats, members: JSON.parse(JSON.stringify(gu.members)) };
 
   // 保險：理論上 loadAll() 已經幫每筆賓客建立過原始快照，這裡再確認一次，
   // 避免現場新增賓客或極少數例外情況下漏建快照
@@ -2350,7 +2342,7 @@ function save() {
   const vegOver  = !gu.isNew && (gu.vegQty || 0) > gu.seats;
   const gidToSync = curGuestId;
 
-  closeModal();
+  closeModal(true);   // 已送出：保留修改後的資料
   const g = GROUPS.find(x => x.guests.some(gu => gu.id === gidToSync));
   if (g) renderGuests(g.guests);
   if (document.getElementById('tables-page').classList.contains('active'))   renderTables();
@@ -2370,7 +2362,21 @@ function save() {
   }
 }
 
-function closeModal() { document.getElementById('modal-wrap').classList.remove('open'); }
+// 登記視窗開啟當下的資料(桌次／大人／成員明細)：沒按「完成登記」就關閉(取消、點外面、刪除)時，
+// 要還原成這份，避免視窗內改了桌次或按了「還原」卻沒送出，卻已經改到畫面上的賓客資料。
+let modalOpenState = null;
+function closeModal(committed) {
+  if (!committed && modalOpenState) {
+    const gu = allGuests().find(x => x.id === modalOpenState.id);
+    if (gu) {
+      gu.table   = modalOpenState.table;
+      gu.seats   = modalOpenState.seats;
+      gu.members = JSON.parse(JSON.stringify(modalOpenState.members));
+    }
+  }
+  modalOpenState = null;
+  document.getElementById('modal-wrap').classList.remove('open');
+}
 function handleWrapClick(e) { if(e.target===document.getElementById('modal-wrap')) closeModal(); }
 
 // 攔截主登記 modal 內輸入框的按鍵，防止閃退
