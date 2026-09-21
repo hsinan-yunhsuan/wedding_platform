@@ -830,6 +830,8 @@ body { padding-bottom:82px; }
 
         <div class="headcount-check" id="headcount-check" style="display:none;"></div>
 
+        <button type="button" class="member-reset-btn" id="guest-reset-btn" style="display:none;margin:0;" onclick="resetGuestInfo()">↺ 還原賓客資料為預設</button>
+
         <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
           <span id="table-expand-toggle-label">展開／收合各成員桌次明細</span>
           <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
@@ -1272,6 +1274,22 @@ function updateTableEditUiState() {
     arrow.style.display = '';
     arrow.textContent = memberEditExpanded ? '▾' : '▸';
   }
+  updateResetButton();
+}
+
+// 「還原賓客資料為預設」的入口有兩種：
+//   ・改了桌次／大人人數 → 成員明細已停用，展開明細的方框直接變成還原按鈕(見上方)；
+//   ・只改了兒童／素食 → 成員明細仍可使用，改由這顆獨立按鈕還原。
+// 預設值 ＝ 這次載入時「賓客名單」分頁的資料(桌次、大人、兒童、素食)，不是上一次登記的結果。
+function updateResetButton() {
+  const btn = document.getElementById('guest-reset-btn');
+  if (!btn) return;
+  const gu   = allGuests().find(x => x.id === curGuestId);
+  const snap = originalSnapshots[curGuestId];
+  if (!gu || gu.isNew || !snap || tableManuallyEdited) { btn.style.display = 'none'; return; }
+  const vegChanged   = curVegQty   !== (snap.vegQty || 0);
+  const childChanged = curChildQty !== childQtyNumeric(snap.childChair);
+  btn.style.display = (vegChanged || childChanged) ? 'block' : 'none';
 }
 
 // 直接修改上方「桌次」欄位，或調整「大人」人數時呼叫：
@@ -1284,19 +1302,28 @@ function markTableManuallyEdited() {
   updateTableEditUiState();
 }
 
-// 「還原賓客資料為預設」：把桌次／大人人數／成員明細還原成
-// 這台裝置最一開始看到的賓客名單資料(見 originalSnapshots)，並重新啟用成員明細展開功能；
-// 兒童／素食人數與成員明細無關，不會被還原，避免現場已調整好的人數被一併蓋掉
+// 「還原賓客資料為預設」：把桌次／大人人數／兒童／素食／成員明細，全部還原成
+// 這次載入時「賓客名單」分頁的資料(見 originalSnapshots)，不是上一次登記的結果；
+// 只有修改桌次或大人人數才會停用成員明細，但四項(含兒童、素食)任何一項被改動都可以還原。
+// 兒童／素食只更新登記視窗內的數字，按「完成登記」才會存檔。
 function resetGuestInfo() {
   const gu = allGuests().find(x => x.id === curGuestId);
   const snap = originalSnapshots[curGuestId];
   if (!gu || !snap) return;
+
+  const wasTableEdited = tableManuallyEdited;
 
   gu.table      = snap.table;
   gu.seats      = snap.seats;
   gu.members    = JSON.parse(JSON.stringify(snap.members));
 
   curSeats    = parseSeatsValue(snap.seats);
+  if (!gu.isNew) {
+    curVegQty   = snap.vegQty || 0;
+    curChildQty = childQtyNumeric(snap.childChair);
+    document.getElementById('veg-display').textContent   = curVegQty;
+    document.getElementById('child-display').textContent = curChildQty;
+  }
 
   document.getElementById('edit-table').value = gu.table || '';
   document.getElementById('seat-display').textContent = curSeats;
@@ -1305,14 +1332,16 @@ function resetGuestInfo() {
 
   tableManuallyEdited = false;
   updateTableEditUiState();
-  // 還原後直接展開明細，方便現場立刻確認資料已經復原
-  memberEditExpanded = true;
-  document.getElementById('member-edit-block').style.display = 'block';
-  document.getElementById('table-expand-arrow').textContent  = '▾';
+  // 若是因為改了桌次／人數而還原：直接展開明細，方便現場立刻確認資料已經復原
+  if (wasTableEdited) {
+    memberEditExpanded = true;
+    document.getElementById('member-edit-block').style.display = 'block';
+    document.getElementById('table-expand-arrow').textContent  = '▾';
+  }
   renderMemberEdit(gu);
   refreshModalMetaTable(gu);
 
-  showToast('↺ 已還原賓客資料為預設', 'ok', 2200);
+  showToast('↺ 已還原為賓客名單的預設資料', 'ok', 2200);
 }
 
 // ── 素食人數／兒童人數(現場可直接調整)─────────────
@@ -1341,12 +1370,14 @@ function changeVeg(delta) {
   curVegQty = Math.max(0, curVegQty + delta);
   document.getElementById('veg-display').textContent = curVegQty;
   updateHeadCountCheck();
+  updateResetButton();
   showToast('🥗 已調整素食人數，請告知總召', 'warn', 3000);
 }
 
 function changeChild(delta) {
   curChildQty = Math.max(0, curChildQty + delta);
   document.getElementById('child-display').textContent = curChildQty;
+  updateResetButton();
   showToast('🍼 已調整兒童人數，請告知總召', 'warn', 3000);
 }
 
