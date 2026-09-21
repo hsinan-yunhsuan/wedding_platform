@@ -246,6 +246,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   background:rgba(212,163,115,.18); border-radius:8px; padding:1px 6px; margin-left:5px;
   vertical-align:middle; letter-spacing:.02em;
 }
+.tm-veg-tag { margin-left:5px; font-size:13px; }
 .tm-split-tag { font-size:9px; font-weight:500; color:var(--gold-dark); background:rgba(212,163,115,.18); border-radius:8px; padding:1px 6px; margin-left:5px; }
 .status-tag { font-size:10px; padding:3px 9px; border-radius:20px; font-weight:500; }
 .tag-checked { background:var(--green-light); color:var(--green); }
@@ -777,16 +778,16 @@ body { padding-bottom:82px; }
       <div class="guest-info-fields">
         <div class="table-edit-row">
           <div class="table-edit-row-main">
-            <span class="table-edit-label">🪑 桌次 (自動)</span>
+            <span class="table-edit-label">🪑 桌次(自動)</span>
             <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
           </div>
-          <div class="table-edit-hint">可自動彙整，亦可手動調整，分坐多桌請用「、」分隔，可標註人數，例如：3桌x2、5桌x1</div>
+          <div class="table-edit-hint">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</div>
         </div>
 
         <div class="edit-row">
           <div class="edit-label-block">
             <span class="edit-label">👥 大人</span>
-            <span class="edit-note">含攜伴，不含兒童椅兒童，即為佔位人數</span>
+            <span class="edit-note">佔位人數，含自己和攜伴人數，不含兒童椅的幼兒</span>
           </div>
           <div class="seat-ctrl">
             <button class="seat-btn" onclick="changeSeat(-1)">−</button>
@@ -798,7 +799,7 @@ body { padding-bottom:82px; }
         <div class="edit-row" id="child-row" style="display:none;">
           <div class="edit-label-block">
             <span class="edit-label">🍼 兒童</span>
-            <span class="edit-note">需兒童椅幼兒</span>
+            <span class="edit-note">需兒童椅的幼兒</span>
           </div>
           <div class="seat-ctrl">
             <button class="seat-btn" onclick="changeChild(-1)">−</button>
@@ -1964,7 +1965,7 @@ function showTableGuestList(tableKey) {
   allGuests().forEach(gu => {
     const rows = guestTableBreakdown(gu);
     const here = rows.find(a => a.table === tableKey);
-    if (here) list.push({ gu, seatsHere: here.adults, childHere: Math.round(here.child), split: rows.length > 1 });
+    if (here) list.push({ gu, seatsHere: here.adults, childHere: Math.round(here.child), vegHere: here.veg, vegUnknown: here.vegUnknown, split: rows.length > 1 });
   });
 
   const totalSeats   = list.reduce((s,x) => s + x.seatsHere + x.childHere, 0);          // 佔位 ＝ 大人 ＋ 兒童椅
@@ -1978,13 +1979,15 @@ function showTableGuestList(tableKey) {
   document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
   document.getElementById('tm-meta').textContent   = `${checkedSeats}/${totalSeats}佔位(大人＋兒童椅) ・ 共 ${list.length} 組賓客`;
 
-  document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, childHere, split}) => {
+  document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, childHere, vegHere, vegUnknown, split}) => {
     const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
     const dupSub = nameCounts[gu.name] > 1 && gp ? `<span class="pending-sub">${gp.name}</span>` : '';
+    // 素食是哪一位：有素食的賓客，姓名旁邊直接標 🥗(分坐多桌、桌次不明的也一樣標在他所在的每一桌)
+    const vegTag = (vegUnknown || vegHere > 0) ? '<span class="tm-veg-tag">🥗</span>' : '';
     return `<div class="tm-row" onclick="closeTableModal(); openModal(${gu.id});">
       <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
-      <span class="tm-name">${gu.name}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
-      <span class="tm-seats">${seatsHere}位${split ? '(此桌)' : (seatsHere > 1 ? '(含攜伴)' : '')}${childHere > 0 ? `＋兒童椅${childHere}張` : ''}</span>
+      <span class="tm-name">${gu.name}${vegTag}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
+      <span class="tm-seats">${seatsHere}位${split ? '(此桌)' : ''}${childHere > 0 ? `＋兒童椅${childHere}張` : ''}</span>
     </div>`;
   }).join('') || '<div style="padding:20px 4px;text-align:center;color:var(--text-light);font-size:13px;">此桌尚無賓客資料</div>';
 
@@ -2082,25 +2085,27 @@ const CATEGORY_META = {
   cake: {
     title: '🎂 喜餅領取狀況', pendingLabel: '尚未領取喜餅', doneLabel: '已領取喜餅',
     relevant: gu => cakeQtyIsNumeric(gu.cakeQty),
-    isDone: gu => rec(gu.id).cake
+    isDone: gu => rec(gu.id).cake,
+    qty: gu => Number(gu.cakeQty) || 0, qtyLabel: '喜餅', qtyUnit: '份', qtyDoneWord: '已領取'   // 名單右側顯示喜餅份數
   },
   child: {
     // 兒童椅名單：依所屬小卡是否已到分「未到／已到」；大人 0 位的小卡不需報到，另列一區
     title: '🍼 賓客兒童椅名單', pendingLabel: '未到', doneLabel: '已到',
     relevant: gu => childQtyNumeric(gu.childChair) > 0,
     isDone: gu => isCheckedIn(gu),
-    qty: gu => childQtyNumeric(gu.childChair), qtyLabel: '兒童', splitNoAdult: true
+    qty: gu => childQtyNumeric(gu.childChair), qtyLabel: '兒童', splitNoAdult: true, showAdultSub: true
   },
   veg: {
     title: '🥗 賓客素食名單', pendingLabel: '未到', doneLabel: '已到',
     relevant: gu => (gu.vegQty || 0) > 0,
     isDone: gu => isCheckedIn(gu),
-    qty: gu => gu.vegQty || 0, qtyLabel: '素食', splitNoAdult: true
+    qty: gu => gu.vegQty || 0, qtyLabel: '素食', splitNoAdult: true, showAdultSub: true
   },
   jar: {
     title: '🏺 可領取喜宴甕名單', pendingLabel: '', doneLabel: '',
     relevant: gu => !!(gu.jarQty && gu.jarQty > 0),
     isDone: gu => rec(gu.id).jar,
+    qty: gu => Number(gu.jarQty) || 0, qtyLabel: '喜宴甕', qtyUnit: '個', qtyDoneWord: null,   // 只顯示數量，不分已領／未領
     flatList: true
   },
   gift: {
@@ -2118,7 +2123,7 @@ function categoryRowHTML(gu) {
   // 兒童／素食名單：右側顯示該項人數，桌次旁補上大人人數
   const qtyUnit = meta.qtyUnit || '位';
   const qtyTxt = meta.qty ? `${meta.qtyLabel} ${meta.qty(gu)} ${qtyUnit}` : `${guestSeats(gu)} 位`;
-  const adultSub = meta.qty ? ` ・ 大人 ${guestSeats(gu)} 位` : '';
+  const adultSub = meta.showAdultSub ? ` ・ 大人 ${guestSeats(gu)} 位` : '';
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
   const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
   return `<div class="tm-row" onclick="openModal(${gu.id})">
@@ -2135,8 +2140,12 @@ function renderCategoryPage(cat) {
   document.getElementById('category-title').textContent = meta.title;
   const qtySum  = meta.qty ? relevantAll.reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
   const qtyDone = meta.qty ? relevantAll.filter(meta.isDone).reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
+  const doneWord = (meta.qtyDoneWord === undefined) ? '已到' : meta.qtyDoneWord;   // null ＝ 不分已領／未領，只顯示總數
+  const unit = meta.qtyUnit || '位';
   document.getElementById('category-count').textContent =
-    `共 ${relevantAll.length} 組賓客` + (meta.qty ? `・${meta.qtyLabel}已到 ${qtyDone} / ${qtySum} ${meta.qtyUnit || '位'}` : '');
+    `共 ${relevantAll.length} 組賓客` + (meta.qty
+      ? (doneWord ? `・${meta.qtyLabel}${doneWord} ${qtyDone} / ${qtySum} ${unit}` : `・${meta.qtyLabel}共 ${qtySum} ${unit}`)
+      : '');
 
   if (relevantAll.length === 0) {
     document.getElementById('category-sections').innerHTML =
