@@ -29,7 +29,8 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 #toast {
   position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
   padding:12px 24px; border-radius:30px; font-size:14px; font-weight:500;
-  color:#fff; white-space:nowrap; z-index:9999; pointer-events:none;
+  color:#fff; white-space:normal; width:max-content; max-width:calc(100vw - 32px);
+  text-align:center; line-height:1.5; z-index:9999; pointer-events:none;
   opacity:0; transition:all 0.3s ease; box-shadow:0 8px 32px rgba(0,0,0,0.15);
 }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -71,6 +72,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .stat-card.green-num .stat-num { color:var(--green); }
 .stat-num.frac { font-size:26px; }
 @media (max-width:640px) { .stat-num.frac { font-size:19px; } }
+.stat-sub { font-size:10px; line-height:1.4; color:var(--text-light); margin-top:6px; letter-spacing:.02em; }
 .stat-line1 { font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:600; color:var(--gold); line-height:1.15; }
 .stat-card.green-num .stat-line1 { color:var(--green); }
 @media (max-width:640px) { .stat-line1 { font-size:21px; } }
@@ -332,6 +334,15 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .seat-btn:hover { background:var(--gold-lighter); border-color:var(--gold-light); color:var(--gold-dark); }
 .seat-num { font-size:16px; font-weight:500; color:var(--text); min-width:20px; text-align:center; }
+/* 總人數／素食人數檢查列 */
+.headcount-check {
+  font-size:12px; line-height:1.5; color:var(--text-light);
+  padding:0 6px; margin-top:-3px;
+}
+.headcount-check.warn {
+  color:#a4560f; background:rgba(224,164,88,.16);
+  border:1px solid rgba(224,164,88,.5); border-radius:10px; padding:8px 12px;
+}
 .table-edit-row {
   display:flex; flex-direction:column; gap:6px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
@@ -668,7 +679,7 @@ body { padding-bottom:82px; }
   <div class="stats-section">
     <div class="stats-grid">
       <div class="stat-card green-num stat-card-click" onclick="showCategoryPage('checkin')">
-        <div class="stat-label">賓客人數（含攜伴）</div>
+        <div class="stat-label">賓客大人（含攜伴）</div>
         <div class="stat-line1" id="s-checked-total">—</div>
       </div>
       <div class="stat-card stat-card-click" onclick="showCategoryPage('cake')">
@@ -804,6 +815,8 @@ body { padding-bottom:82px; }
           </div>
         </div>
 
+        <div class="headcount-check" id="headcount-check" style="display:none;"></div>
+
         <div class="table-expand-toggle" id="table-expand-toggle" onclick="toggleMemberEdit()">
           <span id="table-expand-toggle-label">展開／收合各成員桌次明細</span>
           <span class="cat-collapse-arrow" id="table-expand-arrow">▸</span>
@@ -841,8 +854,8 @@ body { padding-bottom:82px; }
       </div>
       <div class="add-field">
         <label class="add-label">大人人數（含攜伴）</label>
-        <input class="add-input" type="number" id="add-seats" placeholder="1" min="1" value="1" />
-        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童</div>
+        <input class="add-input" type="number" id="add-seats" placeholder="1" min="0" value="1" />
+        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童（可填 0）</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
@@ -913,6 +926,18 @@ let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
 
+// ── 大人人數：0 就是 0，不再強制當成 1 ───────────────
+// 只有欄位完全沒有資料（undefined／null／空字串／非數字）時才套用預設值 1
+function parseSeatsValue(v) {
+  if (v === undefined || v === null || v === '') return 1;
+  const n = Number(v);
+  return isNaN(n) ? 1 : Math.max(0, Math.floor(n));
+}
+function guestSeats(gu) { return parseSeatsValue(gu.seats); }
+
+// 是否算「已到」：大人人數為 0 的小卡不會有已到狀態
+function isCheckedIn(gu) { return guestSeats(gu) > 0 && !!rec(gu.id).checkin; }
+
 // ── 桌次分析（支援一組報到賓客分坐多桌）───────────────
 // 桌次欄位格式：
 //   "T3"              → 全部 seats 人皆坐 T3
@@ -920,7 +945,7 @@ function allGuests() { return GROUPS.flatMap(g => g.guests); }
 //   "T3x2、T5x2"       → 明確指定各桌人數（x/X/×/* 皆可）
 //   混合寫法也支援，例如 "T3x2、T5"（T5 分得剩餘人數）
 function parseTableAssignments(tableStr, totalSeats) {
-  const seats = totalSeats || 1;
+  const seats = (totalSeats === 0) ? 0 : (totalSeats || 1);   // 0 位大人就是 0，不強制為 1
   const raw = (tableStr || '').trim();
   if (!raw) return [{ table: '未分桌', seats }];
 
@@ -932,7 +957,7 @@ function parseTableAssignments(tableStr, totalSeats) {
   const assigned = parts.map((p, idx) => {
     const m = p.match(/^(.+?)[xX×\*](\d+)$/);
     if (m) {
-      const n = Math.max(parseInt(m[2], 10) || 1, 1);
+      const n = Math.max(parseInt(m[2], 10) || 0, 0);   // x0 就是 0 位，不強制為 1
       specifiedTotal += n;
       return { table: m[1].trim(), seats: n };
     }
@@ -951,6 +976,9 @@ function parseTableAssignments(tableStr, totalSeats) {
       assigned[idx].seats = s; // 不再強制最少 1 位，避免總人數超出實際人數（分桌總數異常的根因）
     });
   }
+
+  // 大人 0 位：保留所有桌次（各桌大人都是 0），讓兒童仍可依桌次歸位
+  if (seats === 0) return assigned.map(a => ({ table: a.table, seats: 0 }));
 
   // 濾除分配到 0 位的桌次（通常代表「人數」與桌次分段數量對不齊）；
   // 若全部被濾除（極端邊界情況），至少保留第一桌以免此賓客憑空消失
@@ -995,6 +1023,96 @@ function tableStringSeatMismatch(tableStr, adultSeats) {
   if (allSpecified) return specifiedTotal !== adultSeats ? specifiedTotal : null;
   return specifiedTotal > adultSeats ? specifiedTotal : null;
 }
+
+// ── 兒童桌次：分桌時，兒童算在哪一桌 ─────────────────
+// 若一張小卡分坐多桌且有兒童，兒童不再依各桌大人人數比例分攤，而是：
+//   1. 有成員姓名（或別名）含「一家」→ 跟著「一家」成員坐；
+//   2. 找不到「一家」→ 跟最後一位成員坐（成員的桌次若不在小卡桌次內，例如直接改過桌次欄位，
+//      就改用小卡桌次欄位裡最後一桌）
+const FAMILY_KEYWORD = '一家';
+
+function memberIsFamily(m) {
+  return !!m && [m.name, m.alias].some(t => typeof t === 'string' && t.includes(FAMILY_KEYWORD));
+}
+
+function tableNamesOf(tableStr) {
+  return (tableStr || '').split(/[、,，]/).map(t => t.trim().replace(/[xX×\*]\d+$/, '')).filter(Boolean);
+}
+
+// 回傳 [{table, qty}]（qty 加總 ＝ childNum）；不分桌或沒有兒童時回傳 null
+function childTableAssignments(gu, childNum) {
+  if (!(childNum > 0) || !isSplitTable(gu.table)) return null;
+  const names = tableNamesOf(gu.table);
+  const known = new Set(names);
+  const members = Array.isArray(gu.members) ? gu.members : [];
+
+  // 1. 跟著「一家」成員
+  const weight = {};
+  members.filter(memberIsFamily).forEach(m => {
+    parseTableAssignments(m.table, m.seats || 0).forEach(a => {
+      const t = a.table || '未分桌';
+      if (known.has(t)) weight[t] = (weight[t] || 0) + (a.seats || 0);
+    });
+  });
+  const tables = Object.keys(weight);
+  if (tables.length) {
+    let totalW = tables.reduce((sum, t) => sum + weight[t], 0);
+    if (totalW === 0) { tables.forEach(t => weight[t] = 1); totalW = tables.length; }
+
+    // 依權重把兒童整數分配（最大餘數法），確保加總等於兒童人數
+    const raw = tables.map(t => ({ table: t, exact: childNum * weight[t] / totalW }));
+    raw.forEach(x => x.qty = Math.floor(x.exact));
+    let left = childNum - raw.reduce((sum, x) => sum + x.qty, 0);
+    [...raw].sort((a, b) => (b.exact - b.qty) - (a.exact - a.qty)).forEach(x => { if (left > 0) { x.qty++; left--; } });
+    return raw.filter(x => x.qty > 0).map(x => ({ table: x.table, qty: x.qty }));
+  }
+
+  // 2. 找不到「一家」→ 跟最後一位成員
+  const last = members[members.length - 1];
+  if (last) {
+    const lt = tableNamesOf(last.table);
+    const t = lt.length ? lt[lt.length - 1] : '未分桌';
+    if (known.has(t)) return [{ table: t, qty: childNum }];
+  }
+
+  // 3. 成員桌次對不上（例如直接改過桌次欄位）→ 小卡桌次欄位的最後一桌
+  return [{ table: names[names.length - 1], qty: childNum }];
+}
+
+// 小卡／登記視窗上顯示用：兒童坐哪一桌（不分桌時回傳空字串）
+function childTableLabel(gu, childNum) {
+  const n = (childNum === undefined) ? childQtyNumeric(gu.childChair) : childNum;
+  const list = childTableAssignments(gu, n);
+  return list ? list.map(x => x.table).join('、') : '';
+}
+
+// 一位賓客在各桌的人數明細：大人、兒童、素食（桌次總覽與桌次名單共用）
+function guestTableBreakdown(gu) {
+  const seats = guestSeats(gu);
+  const assignments = parseTableAssignments(gu.table, seats);
+  const childNum = childQtyNumeric(gu.childChair);
+  const vegQty = gu.vegQty || 0;
+  const rows = [];
+  const rowOf = t => {
+    const key = t || '未分桌';
+    let row = rows.find(r => r.table === key);
+    if (!row) { row = { table: key, adults: 0, child: 0, veg: 0 }; rows.push(row); }
+    return row;
+  };
+  const famChild = childTableAssignments(gu, childNum);
+
+  assignments.forEach(a => {
+    const row = rowOf(a.table);
+    // 若同一組賓客分坐多桌，素食人數依大人人數比例分攤（大人 0 位則平均分）；兒童見 childTableAssignments
+    const ratio = seats > 0 ? a.seats / seats : 1 / assignments.length;
+    row.adults += a.seats;
+    row.veg    += vegQty * ratio;
+    if (!famChild) row.child += childNum * ratio;
+  });
+  if (famChild) famChild.forEach(x => { rowOf(x.table).child += x.qty; });
+  return rows;
+}
+
 function rec(id) {
   if (!records[id]) records[id] = {amount:null,cake:false,cakeQty:0,jar:false,jarQty:0,checkin:false,envNo:null,vegQty:'',baby:'',updatedAt:null};
   return records[id];
@@ -1013,7 +1131,7 @@ function isMultiMember(gu) {
 // 讓展開後的明細與彙總欄位維持一致的操作方式。
 function ensureMembers(gu) {
   if (!Array.isArray(gu.members) || gu.members.length === 0) {
-    gu.members = [{ name: gu.name, alias: '', seats: gu.seats || 1, table: gu.table || '' }];
+    gu.members = [{ name: gu.name, alias: '', seats: guestSeats(gu), table: gu.table || '' }];
   }
   return gu.members;
 }
@@ -1043,8 +1161,9 @@ function ensureOriginalSnapshot(gu) {
   };
 }
 
-// 比對目前資料與原始快照，只要桌次、人數、素食、兒童、成員桌次明細任一項不同，
+// 比對目前資料與原始快照，只要桌次、大人人數、成員桌次明細任一項不同，
 // 就視為「已手動調整過」：停用展開明細、方框改為「還原賓客資料為預設」；
+// 兒童／素食人數與成員桌次明細無關，調整它們不會停用成員明細（素食人數改由檢查機制把關，見 updateHeadCountCheck）；
 // 這個狀態是即時比對出來的，不是另外存一個開關，所以無論是同一次操作內、
 // 儲存後重新打開登記視窗、甚至重新整理頁面，只要資料還沒被還原，就會持續維持這個狀態。
 function isGuestManuallyEdited(gu) {
@@ -1053,8 +1172,6 @@ function isGuestManuallyEdited(gu) {
   ensureMembers(gu);
   if ((gu.table || '') !== (snap.table || '')) return true;
   if (gu.seats !== snap.seats) return true;
-  if ((gu.vegQty || 0) !== (snap.vegQty || 0)) return true;
-  if ((gu.childChair || '') !== (snap.childChair || '')) return true;
   if (JSON.stringify(gu.members) !== JSON.stringify(snap.members)) return true;
   return false;
 }
@@ -1068,9 +1185,10 @@ function recomputeAggregateTable(gu) {
     if (!(t in byTable)) { byTable[t] = 0; order.push(t); }
     byTable[t] += (m.seats || 0);
   });
+  const allZero = order.every(t => byTable[t] === 0);   // 大人 0 位：只列桌次，不加 x0
   gu.table = order.length <= 1
     ? (order[0] || '')
-    : order.map(t => (t || '未分桌') + 'x' + byTable[t]).join('、');
+    : order.map(t => (t || '未分桌') + (allZero ? '' : 'x' + byTable[t])).join('、');
   return gu.table;
 }
 
@@ -1119,7 +1237,7 @@ function updateTableEditUiState() {
   const arrow = document.getElementById('table-expand-arrow');
   if (tableManuallyEdited) {
     btn.classList.add('is-reset');
-    label.innerHTML = '<span class="reset-hint">因修改人數或桌次，已停用成員桌次明細</span><span class="reset-action">↺ 點此還原賓客資料為預設</span>';
+    label.innerHTML = '<span class="reset-hint">因修改大人人數或桌次，已停用成員桌次明細</span><span class="reset-action">↺ 點此還原賓客資料為預設</span>';
     arrow.style.display = 'none';
     memberEditExpanded = false;
     document.getElementById('member-edit-block').style.display = 'none';
@@ -1141,8 +1259,9 @@ function markTableManuallyEdited() {
   updateTableEditUiState();
 }
 
-// 「還原賓客資料為預設」：把桌次／人數／兒童／素食／成員明細全部還原成
-// 這台裝置最一開始看到的賓客名單資料（見 originalSnapshots），並重新啟用成員明細展開功能
+// 「還原賓客資料為預設」：把桌次／大人人數／成員明細還原成
+// 這台裝置最一開始看到的賓客名單資料（見 originalSnapshots），並重新啟用成員明細展開功能；
+// 兒童／素食人數與成員明細無關，不會被還原，避免現場已調整好的人數被一併蓋掉
 function resetGuestInfo() {
   const gu = allGuests().find(x => x.id === curGuestId);
   const snap = originalSnapshots[curGuestId];
@@ -1150,20 +1269,14 @@ function resetGuestInfo() {
 
   gu.table      = snap.table;
   gu.seats      = snap.seats;
-  gu.vegQty     = snap.vegQty;
-  gu.childChair = snap.childChair;
   gu.members    = JSON.parse(JSON.stringify(snap.members));
 
-  curSeats    = snap.seats;
-  curVegQty   = snap.vegQty;
-  curChildQty = childQtyNumeric(snap.childChair);
+  curSeats    = parseSeatsValue(snap.seats);
 
   document.getElementById('edit-table').value = gu.table || '';
   document.getElementById('seat-display').textContent = curSeats;
-  if (!gu.isNew) {
-    document.getElementById('veg-display').textContent   = curVegQty;
-    document.getElementById('child-display').textContent = curChildQty;
-  }
+  updateCheckinToggleVisibility();
+  updateHeadCountCheck();
 
   tableManuallyEdited = false;
   updateTableEditUiState();
@@ -1177,14 +1290,35 @@ function resetGuestInfo() {
   showToast('↺ 已還原賓客資料為預設', 'ok', 2200);
 }
 
-// ── 素食人數（現場可直接調整）─────────────────────
+// ── 素食人數／兒童人數（現場可直接調整）─────────────
+// 調整兒童或素食人數不會停用「各成員桌次明細」；改由「素食人數檢查」把關：
+//   素食人數不得超過大人人數（畫面上只有大人人數，沒有總人數）
+//   ・按「素食 ＋」時，若已達大人人數就直接擋下
+//   ・減少大人後，若素食人數反而超過大人人數，會在畫面上警示，完成登記時也會提醒（不擋下傳送）
+function vegExceedsAdults() { return curVegQty > curSeats; }
+
+function updateHeadCountCheck() {
+  const el = document.getElementById('headcount-check');
+  if (!el) return;
+  const gu = allGuests().find(x => x.id === curGuestId);
+  if (!gu || gu.isNew || !vegExceedsAdults()) { el.style.display = 'none'; return; }   // 現場新增賓客沒有素食欄位
+  el.className = 'headcount-check warn';
+  el.textContent = `⚠️ 素食人數（${curVegQty}）超過大人人數（${curSeats}），請確認`;
+  el.style.display = 'block';
+}
+
 function changeVeg(delta) {
+  if (delta > 0 && curVegQty + delta > curSeats) {
+    showToast(`⚠️ 素食人數不可超過大人人數（${curSeats}）`, 'warn', 2600);
+    updateHeadCountCheck();
+    return;
+  }
   curVegQty = Math.max(0, curVegQty + delta);
   document.getElementById('veg-display').textContent = curVegQty;
+  updateHeadCountCheck();
   showToast('🥗 已調整素食人數，請告知總召', 'warn', 3000);
 }
 
-// ── 兒童人數（現場可直接調整）─────────────────────
 function changeChild(delta) {
   curChildQty = Math.max(0, curChildQty + delta);
   document.getElementById('child-display').textContent = curChildQty;
@@ -1217,11 +1351,13 @@ function updateMemberTable(idx, value) {
 function refreshModalMetaTable(gu) {
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
   const split = isSplitTable(gu.table);
+  const childTbl = gu.isNew ? '' : childTableLabel(gu, curChildQty);
   document.getElementById('m-meta').innerHTML =
     `<span class="meta-pill">${gp ? gp.name : ''}</span>` +
     `<span class="meta-pill">桌次 ${gu.table ? formatTableDisplay(gu.table) : '—'}</span>` +
     (split ? `<span class="meta-pill">🔀 分桌</span>` : '') +
-    `<span class="meta-pill">${curSeats} 位（含攜伴）</span>`;
+    `<span class="meta-pill">${curSeats} 位（含攜伴）</span>` +
+    (childTbl ? `<span class="meta-pill">🍼 兒童桌次 ${escapeHtml(childTbl)}</span>` : '');
 }
 
 // ── 喜餅數量（cakeQty）可能是數字（份數）或文字（特殊備註）───
@@ -1316,7 +1452,7 @@ function handleGlobalSearch() {
   }
 
   resultsEl.innerHTML = matches.slice(0, 30).map(({ gu, groupName, matchedLabel }) => {
-    const checked = rec(gu.id).checkin;
+    const checked = isCheckedIn(gu);
     const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
     const metaPrefix = matchedLabel ? `${escapeHtml(matchedLabel)} ・ ` : '';
     return `<div class="gsearch-row" onclick="selectGlobalSearchResult(${gu.id})">
@@ -1397,7 +1533,7 @@ async function loadAll() {
             const alreadyIn = targetGroup.guests.some(g => g.id === id);
             if (!alreadyIn) {
               const newGu = {
-                id, name: r.name, table: r.table || '', seats: Number(r.seats) || 1, isNew: true
+                id, name: r.name, table: r.table || '', seats: parseSeatsValue(r.seats), isNew: true
               };
               targetGroup.guests.push(newGu);
               ensureOriginalSnapshot(newGu);
@@ -1497,11 +1633,12 @@ function refreshStats() {
 
   GROUPS.forEach(g => {
     g.guests.forEach(gu => {
-      const seats = gu.seats || 1;
+      const seats = guestSeats(gu);
       const r = rec(gu.id);
       totals.total += seats;
-      totals.groupsTotal += 1;
-      if (r.checkin) { totals.checked += seats; totals.groupsChecked += 1; }
+      // 大人 0 位的小卡不會有「已到」狀態，不列入報到組數
+      if (seats > 0) totals.groupsTotal += 1;
+      if (isCheckedIn(gu)) { totals.checked += seats; totals.groupsChecked += 1; }
 
       // 喜餅數：以「份數」合計，非以人頭（賓客數）計算；
       // 若該賓客的喜餅欄位填的是文字（特殊備註），不計入加總，只計數字
@@ -1522,7 +1659,8 @@ function renderGroups() {
   groomEl.innerHTML = ''; brideEl.innerHTML = '';
 
   GROUPS.forEach(g => {
-    const chk = g.guests.filter(gu => rec(gu.id).checkin).length;
+    const chk = g.guests.filter(isCheckedIn).length;
+    const eligible = g.guests.filter(gu => guestSeats(gu) > 0).length;   // 大人 0 位的小卡不列入報到組數
     const card = document.createElement('div');
     card.className = 'group-card';
     card.style.marginBottom = '10px';
@@ -1533,7 +1671,7 @@ function renderGroups() {
         <div class="group-name">${g.name}</div>
       </div>
       <div class="group-badges">
-        <span class="badge badge-count">未到 ${g.guests.length - chk} 組 / 共 ${g.guests.length} 組賓客</span>
+        <span class="badge badge-count">未到 ${eligible - chk} 組 / 共 ${eligible} 組賓客</span>
       </div>`;
     (isGroomGroup(g.name) ? groomEl : brideEl).appendChild(card);
   });
@@ -1552,8 +1690,9 @@ function showGroup(gid) {
 }
 
 function renderGuests(guests) {
-  const chk = guests.filter(g => rec(g.id).checkin).length;
-  document.getElementById('list-count').textContent = `${chk} / ${guests.length} 已到`;
+  const chk = guests.filter(isCheckedIn).length;
+  const eligible = guests.filter(g => guestSeats(g) > 0).length;   // 大人 0 位的小卡不列入報到數
+  document.getElementById('list-count').textContent = `${chk} / ${eligible} 已到`;
   // 排序：原有賓客在前，現場新增在後
   const sorted = [...guests].sort((a,b) => (a.isNew ? 1 : 0) - (b.isNew ? 1 : 0));
   const addCardHTML = `<div class="add-card" onclick="openAddModal()">
@@ -1564,9 +1703,13 @@ function renderGuests(guests) {
   document.getElementById('guest-grid').innerHTML = sorted.map(gu => {
     const r = rec(gu.id);
     const isNew = gu.isNew;
+    const seatsN = guestSeats(gu);
+    const noAdult = seatsN === 0;             // 大人 0 位：直接顯示 0，不顯示已到，只顯示紅包編號、喜餅提領欄位
+    const isChecked = !noAdult && !!r.checkin;
     let statusTag, cardClass;
     if (isNew)          { statusTag='🆕現場'; cardClass='is-new'; }
-    else if (r.checkin) { statusTag='✓已到';    cardClass='is-checked'; }
+    else if (noAdult)   { statusTag='';         cardClass=''; }
+    else if (isChecked) { statusTag='✓已到';    cardClass='is-checked'; }
     else                { statusTag='未到';        cardClass=''; }
     const updatedLine = r.updatedAt ? `<span class="last-updated">${r.updatedAt}</span>` : '';
     const deleteBtn = isNew
@@ -1577,32 +1720,37 @@ function renderGuests(guests) {
     const cakeIsNum = cakeQtyIsNumeric(gu.cakeQty);
     const cakeNote  = (!cakeIsNum && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
     const childNum  = childQtyNumeric(gu.childChair);
+    const childTbl  = (!isNew && split) ? childTableLabel(gu, childNum) : '';   // 分桌時，兒童算在「一家」賓客的桌次
+    const hasEnv    = r.envNo !== null && r.envNo !== undefined && r.envNo !== '';
+    const tableRow  = noAdult ? '' :
+      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`;
+    const adultRow  = `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${seatsN} 位</span></div>`;
+    const envRow    =
+      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${hasEnv ? r.envNo : '未填'}</span></div>`;
     // 現場新增的小卡：只顯示桌次、大人、紅包編號
-    const detailRows = isNew ? [
-      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
-      `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${gu.seats} 位</span></div>`,
-      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
-    ].join('') : [
-      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`,
-      `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${gu.seats} 位</span></div>`,
-      childNum > 0 ? `<div class="detail-row"><span class="detail-label">🍼 兒童</span><span class="detail-val">${childNum} 位</span></div>` : '',
-      (gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : '',
-      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${(r.envNo !== null && r.envNo !== undefined && r.envNo !== '') ? r.envNo : '未填'}</span></div>`,
+    const detailRows = isNew ? [tableRow, adultRow, envRow].join('') : [
+      tableRow,
+      adultRow,
+      (!noAdult && childNum > 0) ? `<div class="detail-row"><span class="detail-label">🍼 兒童</span><span class="detail-val">${childNum} 位${childTbl ? `（${escapeHtml(childTbl)}）` : ''}</span></div>` : '',
+      (!noAdult && gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : '',
+      envRow,
       cakeIsNum ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${cakeQtyDisplay(gu.cakeQty)}` : `未領取（共 ${cakeQtyDisplay(gu.cakeQty)}）`}</span></div>` : '',
       cakeNote ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? '已領取' : '未領取'}（${cakeNote}）</span></div>` : '',
     ].join('');
+    const dotHtml = (noAdult && !isNew) ? '' : '<div class="status-dot"></div>';
+    const footerHtml = (statusTag || updatedLine) ? `
+      <div class="guest-footer">
+        ${statusTag ? `<span class="status-tag ${isChecked?'tag-checked':(isNew?'tag-new':'tag-pending')}">${statusTag}</span>` : '<span></span>'}
+        ${updatedLine}
+      </div>` : '';
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
         <div class="guest-name">${gu.name}</div>
-        <div style="display:flex;align-items:center;gap:6px;">${deleteBtn}<div class="status-dot"></div></div>
+        <div style="display:flex;align-items:center;gap:6px;">${deleteBtn}${dotHtml}</div>
       </div>
       <div class="guest-details">
         ${detailRows}
-      </div>
-      <div class="guest-footer">
-        <span class="status-tag ${r.checkin?'tag-checked':(isNew?'tag-new':'tag-pending')}">${statusTag}</span>
-        ${updatedLine}
-      </div>
+      </div>${footerHtml}
     </div>`;
   }).join('') + addCardHTML;
 }
@@ -1651,24 +1799,17 @@ function goHome() {
 
 // ── 桌次報到總覽 ──────────────────────────────────
 function getTableData() {
-  const all = allGuests();
   const map = {};
-  all.forEach(gu => {
-    const isChecked = rec(gu.id).checkin;
-    const seats = gu.seats || 1;
-    const vegQty = gu.vegQty || 0;
-    // 兒童欄若為純數字則以該數字計算，否則有填寫即計為 1
-    const babyNum = childQtyNumeric(gu.childChair);
-    const assignments = parseTableAssignments(gu.table, seats);
-    assignments.forEach(a => {
-      const key = a.table || '未分桌';
+  allGuests().forEach(gu => {
+    const isChecked = isCheckedIn(gu);
+    // 兒童：分桌時算在名稱含「一家」的賓客所在桌次；素食：依大人人數比例分攤（見 guestTableBreakdown）
+    guestTableBreakdown(gu).forEach(row => {
+      const key = row.table;
       if (!map[key]) map[key] = { table:key, totalSeats:0, checkedSeats:0, vegQty:0, babyQty:0 };
-      map[key].totalSeats += a.seats;
-      if (isChecked) map[key].checkedSeats += a.seats;
-      // 若同一組賓客分坐多桌，兒童／素食人數依座位比例分攤到各桌
-      const ratio = a.seats / seats;
-      map[key].vegQty  += vegQty  * ratio;
-      map[key].babyQty += babyNum * ratio;
+      map[key].totalSeats += row.adults;
+      if (isChecked) map[key].checkedSeats += row.adults;
+      map[key].vegQty  += row.veg;
+      map[key].babyQty += row.child;
     });
   });
   return Object.values(map).map(t => ({
@@ -1755,13 +1896,13 @@ function renderTables() {
 function showTableGuestList(tableKey) {
   const list = [];
   allGuests().forEach(gu => {
-    const assignments = parseTableAssignments(gu.table, gu.seats || 1);
-    const here = assignments.find(a => (a.table || '未分桌') === tableKey);
-    if (here) list.push({ gu, seatsHere: here.seats, split: assignments.length > 1 });
+    const rows = guestTableBreakdown(gu);
+    const here = rows.find(a => a.table === tableKey);
+    if (here) list.push({ gu, seatsHere: here.adults, childHere: Math.round(here.child), split: rows.length > 1 });
   });
 
   const totalSeats   = list.reduce((s,x) => s + x.seatsHere, 0);
-  const checkedSeats = list.reduce((s,x) => s + (rec(x.gu.id).checkin ? x.seatsHere : 0), 0);
+  const checkedSeats = list.reduce((s,x) => s + (isCheckedIn(x.gu) ? x.seatsHere : 0), 0);
 
   // 若同一桌內出現重複姓名（常見於「舅舅」「阿姨」等以稱謂命名的賓客），
   // 顯示其所屬分組作為副標，避免誤以為同一人被列出兩次
@@ -1771,14 +1912,13 @@ function showTableGuestList(tableKey) {
   document.getElementById('tm-title').textContent = `🪑 ${tableKey}`;
   document.getElementById('tm-meta').textContent   = `${checkedSeats} / ${totalSeats} 位已到（含攜伴） ・ 共 ${list.length} 組賓客`;
 
-  document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, split}) => {
-    const r = rec(gu.id);
+  document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, childHere, split}) => {
     const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
     const dupSub = nameCounts[gu.name] > 1 && gp ? `<span class="pending-sub">${gp.name}</span>` : '';
     return `<div class="tm-row" onclick="closeTableModal(); openModal(${gu.id});">
-      <span class="tm-dot ${r.checkin ? 'on' : ''}"></span>
+      <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
       <span class="tm-name">${gu.name}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
-      <span class="tm-seats">${seatsHere} 位${split ? '（此桌）' : (seatsHere > 1 ? '（含攜伴）' : '')}</span>
+      <span class="tm-seats">${seatsHere} 位${split ? '（此桌）' : (seatsHere > 1 ? '（含攜伴）' : '')}${childHere > 0 ? `・🍼${childHere}` : ''}</span>
     </div>`;
   }).join('') || '<div style="padding:20px 4px;text-align:center;color:var(--text-light);font-size:13px;">此桌尚無賓客資料</div>';
 
@@ -1789,16 +1929,19 @@ function handleTableWrapClick(e) { if (e.target === document.getElementById('tab
 
 // ── 總覽（不顯眼入口；彙總各項數字，與主頁小卡相同樣式，可點入查看名單）───
 function renderOverview() {
-  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, giftCount:0,
+  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, cardsTotal:0, giftCount:0, childTotal:0, vegTotal:0,
                     cakeQtyExpected:0, cakeQtyGiven:0,
                     jarQtyExpected:0, jarQtyGiven:0 };
 
   allGuests().forEach(gu => {
     const r = rec(gu.id);
-    const seats = gu.seats || 1;
+    const seats = guestSeats(gu);
     totals.total += seats;
-    totals.groupsTotal += 1;
-    if (r.checkin) { totals.checked += seats; totals.groupsChecked += 1; }
+    totals.cardsTotal += 1;
+    totals.childTotal += childQtyNumeric(gu.childChair);
+    totals.vegTotal   += gu.vegQty || 0;
+    if (seats > 0) totals.groupsTotal += 1;   // 大人 0 位的小卡不會有「已到」狀態，不列入報到組數
+    if (isCheckedIn(gu)) { totals.checked += seats; totals.groupsChecked += 1; }
     if (r.envNo && String(r.envNo).trim() !== '') totals.giftCount += 1;
 
     const cakeQty = cakeQtyNumeric(gu.cakeQty);
@@ -1810,12 +1953,15 @@ function renderOverview() {
     if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
   });
 
+  // 更多總覽順序：賓客大人（含攜伴）、賓客兒童椅（＝賓客兒童數）、賓客素食、賓客組數、喜餅總數、喜宴甕總數、收禮組數
   const cards = [
-    { label:'賓客總人數', value:`${totals.checked} / ${totals.total}`, cat:'checkin', green:true },
-    { label:'賓客總組數', value:`${totals.groupsChecked} / ${totals.groupsTotal}`, cat:'checkin', green:true },
-    { label:'收禮人數',   value:`${totals.giftCount} / ${totals.groupsTotal}`, cat:'gift' },
-    { label:'喜餅總數',   value:`${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`, cat:'cake' },
-    { label:'喜宴甕總數', value:`${totals.jarQtyExpected}`, cat:'jar', full:true },
+    { label:'賓客大人（含攜伴）', value:`${totals.checked} / ${totals.total}`, cat:'checkin', green:true },
+    { label:'賓客兒童椅',         value:`${totals.childTotal}`, clickable:false },
+    { label:'賓客素食',           value:`${totals.vegTotal}`,   clickable:false },
+    { label:'賓客組數',           value:`${totals.groupsChecked} / ${totals.groupsTotal}`, cat:'checkin', green:true },
+    { label:'喜餅總數',           value:`${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`, cat:'cake' },
+    { label:'喜宴甕總數',         value:`${totals.jarQtyExpected}`, cat:'jar' },
+    { label:'收禮組數',           value:`${totals.giftCount} / ${totals.cardsTotal}`, cat:'gift', full:true },
   ];
 
   document.getElementById('overview-body').innerHTML =
@@ -1854,8 +2000,8 @@ function goHomeFromTables() {
 const CATEGORY_META = {
   checkin: {
     title: '✅ 報到狀況', pendingLabel: '未到', doneLabel: '已到',
-    relevant: gu => true,
-    isDone: gu => rec(gu.id).checkin
+    relevant: gu => guestSeats(gu) > 0,   // 大人 0 位不會有已到狀態
+    isDone: gu => isCheckedIn(gu)
   },
   cake: {
     title: '🎂 喜餅領取狀況', pendingLabel: '尚未領取喜餅', doneLabel: '已領取喜餅',
@@ -1882,9 +2028,9 @@ function categoryRowHTML(gu) {
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
   const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
   return `<div class="tm-row" onclick="openModal(${gu.id})">
-    <span class="tm-dot ${r.checkin ? 'on' : ''}"></span>
+    <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
     <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name + ' ・ ' : ''}桌次 ${tableTxt}</span></span>
-    <span class="tm-seats">${gu.seats} 位</span>
+    <span class="tm-seats">${guestSeats(gu)} 位</span>
   </div>`;
 }
 
@@ -1956,7 +2102,7 @@ function openModal(gid) {
   curGuestId = gid;
   const gu = allGuests().find(x => x.id === gid);
   const r  = rec(gid);
-  curSeats = gu.seats;
+  curSeats = guestSeats(gu);
   curVegQty = gu.vegQty || 0;
   curChildQty = childQtyNumeric(gu.childChair);
 
@@ -1997,20 +2143,14 @@ function openModal(gid) {
   ensureOriginalSnapshot(gu);
   persistOriginalSnapshots();
 
-  // 是否已手動調整過（桌次／人數／素食／兒童／成員明細，任一項與最一開始的快照不同）：
+  // 是否已手動調整過（桌次／大人人數／成員明細，任一項與最一開始的快照不同；兒童／素食不算）：
   // 直接比對現在的資料與原始快照算出，因此無論是同一次操作內、儲存後重新打開，
   // 或重新整理頁面，只要還沒「還原賓客資料為預設」，就會持續停用展開明細
   tableManuallyEdited = isGuestManuallyEdited(gu);
   updateTableEditUiState();
   renderMemberEdit(gu);
 
-  const gp = GROUPS.find(g => g.guests.some(x => x.id === gid));
-  const split = isSplitTable(gu.table);
-  document.getElementById('m-meta').innerHTML =
-    `<span class="meta-pill">${gp.name}</span>` +
-    `<span class="meta-pill">桌次 ${gu.table ? formatTableDisplay(gu.table) : '—'}</span>` +
-    (split ? `<span class="meta-pill">🔀 分桌</span>` : '') +
-    `<span class="meta-pill">${curSeats} 位（含攜伴）</span>`;
+  refreshModalMetaTable(gu);
   document.getElementById('m-updated').textContent =
     r.updatedAt ? `上次更新：${r.updatedAt}` : '';
 
@@ -2026,22 +2166,34 @@ function openModal(gid) {
     childRowEl.style.display = 'none';
     vegRowEl.style.display = 'none';
   }
+  updateHeadCountCheck();
+  updateCheckinToggleVisibility();
 
   renderToggles();
   document.getElementById('modal-wrap').classList.add('open');
 }
 
 function changeSeat(delta) {
-  curSeats = Math.max(1, curSeats + delta);
+  curSeats = Math.max(0, curSeats + delta);   // 大人可為 0，不強制至少 1 位
   document.getElementById('seat-display').textContent = curSeats;
   const gu = allGuests().find(x => x.id === curGuestId);
   if (gu) refreshModalMetaTable(gu);
+  updateCheckinToggleVisibility();
+  updateHeadCountCheck();
   markTableManuallyEdited();
+  if (gu && !gu.isNew && vegExceedsAdults()) showToast(`⚠️ 素食人數（${curVegQty}）超過大人人數（${curSeats}），請確認`, 'warn', 3000);
+}
+
+// 大人 0 位的小卡沒有「已到」狀態：隱藏登記視窗裡的「已到」勾選項
+// （只是隱藏，不清除勾選狀態，人數改回大於 0 時會還原；完成登記時 0 位一律存為未到）
+function updateCheckinToggleVisibility() {
+  const el = document.getElementById('tog-checkin');
+  if (el) el.classList.toggle('hidden', curSeats === 0);
 }
 
 function toggle(key) {
   // 沒有喜餅／喜宴甕份數的賓客，該按鈕已隱藏，點擊無效
-  if ((key === 'cake' || key === 'jar') && document.getElementById('tog-'+key).classList.contains('hidden')) return;
+  if ((key === 'cake' || key === 'jar' || key === 'checkin') && document.getElementById('tog-'+key).classList.contains('hidden')) return;
   togState[key]=!togState[key]; renderToggles();
 }
 function renderToggles() {
@@ -2066,7 +2218,7 @@ function save() {
   r.cakeQty   = togState.cake ? (gu.cakeQty || 0) : 0;
   r.jar       = togState.jar;
   r.jarQty    = togState.jar ? (gu.jarQty || 0) : 0;
-  r.checkin   = togState.checkin;
+  r.checkin   = curSeats > 0 && togState.checkin;   // 大人 0 位不會有已到狀態
   r.envNo     = envnoRaw !== '' ? envnoRaw : null;
 
   // 兒童／素食：現場新增賓客沒有這個區塊，維持空白；其餘賓客可現場直接修改
@@ -2081,8 +2233,9 @@ function save() {
   }
   r.updatedAt = new Date().toLocaleString('zh-TW');
 
-  // 桌次登記人數與大人人數是否吻合（僅提醒，不擋下傳送）
+  // 桌次登記人數與大人人數是否吻合、素食人數是否超過大人人數：僅提醒，不擋下傳送
   const mismatch = tableStringSeatMismatch(gu.table, gu.seats);
+  const vegOver  = !gu.isNew && (gu.vegQty || 0) > gu.seats;
   const gidToSync = curGuestId;
 
   closeModal();
@@ -2092,11 +2245,14 @@ function save() {
   if (document.getElementById('category-page').classList.contains('active') && curCategory) renderCategoryPage(curCategory);
   refreshStats(); renderGroups();
 
-  if (mismatch !== null) {
+  const warns = [];
+  if (mismatch !== null) warns.push(`桌次登記人數（${mismatch}）與大人人數（${gu.seats}）不符`);
+  if (vegOver) warns.push(`素食人數（${gu.vegQty}）超過大人人數（${gu.seats}）`);
+  if (warns.length) {
     // 先跳出警告，讓使用者看得到；資料仍會照常送出，只是延後一點再觸發同步的 Toast，
     // 避免「同步中…」的訊息立刻蓋掉這則警告
-    showToast(`⚠️ 桌次登記人數（${mismatch}）與大人人數（${gu.seats}）不符，已為您送出`, 'warn', 3200);
-    setTimeout(() => syncOne(gidToSync), 2600);
+    showToast(`⚠️ ${warns.join('；')}，已為您送出`, 'warn', 3600);
+    setTimeout(() => syncOne(gidToSync), 3000);
   } else {
     syncOne(gidToSync);
   }
@@ -2152,7 +2308,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function saveNewGuest() {
   const name  = document.getElementById('add-name').value.trim();
   const table = document.getElementById('add-table').value.trim();
-  const seats = parseInt(document.getElementById('add-seats').value) || 1;
+  const seats = parseSeatsValue(parseInt(document.getElementById('add-seats').value, 10));   // 填 0 就是 0，不強制為 1
   if (!name) { showToast('請輸入賓客姓名','err'); return; }
 
   const g = GROUPS.find(x => x.id === curGroupId);
