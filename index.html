@@ -1929,7 +1929,7 @@ function handleTableWrapClick(e) { if (e.target === document.getElementById('tab
 
 // ── 總覽（不顯眼入口；彙總各項數字，與主頁小卡相同樣式，可點入查看名單）───
 function renderOverview() {
-  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, cardsTotal:0, giftCount:0, childTotal:0, vegTotal:0,
+  const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, cardsTotal:0, giftCount:0, childTotal:0, vegTotal:0, childChecked:0, vegChecked:0,
                     cakeQtyExpected:0, cakeQtyGiven:0,
                     jarQtyExpected:0, jarQtyGiven:0 };
 
@@ -1941,7 +1941,12 @@ function renderOverview() {
     totals.childTotal += childQtyNumeric(gu.childChair);
     totals.vegTotal   += gu.vegQty || 0;
     if (seats > 0) totals.groupsTotal += 1;   // 大人 0 位的小卡不會有「已到」狀態，不列入報到組數
-    if (isCheckedIn(gu)) { totals.checked += seats; totals.groupsChecked += 1; }
+    if (isCheckedIn(gu)) {
+      totals.checked += seats; totals.groupsChecked += 1;
+      // 兒童／素食沒有各自的報到動作：所屬小卡已到，就算這些兒童／素食已到
+      totals.childChecked += childQtyNumeric(gu.childChair);
+      totals.vegChecked   += gu.vegQty || 0;
+    }
     if (r.envNo && String(r.envNo).trim() !== '') totals.giftCount += 1;
 
     const cakeQty = cakeQtyNumeric(gu.cakeQty);
@@ -1958,8 +1963,8 @@ function renderOverview() {
   const cards = [
     { label:'賓客大人（含攜伴）', value:`${totals.checked} / ${totals.total}`, cat:'checkin', green:true },
     { label:'賓客組數',           value:`${totals.groupsChecked} / ${totals.groupsTotal}`, cat:'checkin', green:true },
-    { label:'賓客兒童椅',         value:`${totals.childTotal}`, cat:'child' },
-    { label:'賓客素食',           value:`${totals.vegTotal}`,   cat:'veg' },
+    { label:'賓客兒童椅',         value:`${totals.childChecked} / ${totals.childTotal}`, cat:'child', green:true },
+    { label:'賓客素食',           value:`${totals.vegChecked} / ${totals.vegTotal}`,   cat:'veg', green:true },
     { label:'喜餅總數',           value:`${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`, cat:'cake' },
     { label:'喜宴甕總數',         value:`${totals.jarQtyExpected}`, cat:'jar' },
     { label:'收禮組數',           value:`${totals.giftCount} / ${totals.cardsTotal}`, cat:'gift' },
@@ -2057,9 +2062,10 @@ function renderCategoryPage(cat) {
   const relevantAll = allGuests().filter(meta.relevant);
 
   document.getElementById('category-title').textContent = meta.title;
-  const qtySum = meta.qty ? relevantAll.reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
+  const qtySum  = meta.qty ? relevantAll.reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
+  const qtyDone = meta.qty ? relevantAll.filter(meta.isDone).reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
   document.getElementById('category-count').textContent =
-    `共 ${relevantAll.length} 組賓客` + (meta.qty ? `・${meta.qtyLabel} ${qtySum} 位` : '');
+    `共 ${relevantAll.length} 組賓客` + (meta.qty ? `・${meta.qtyLabel}已到 ${qtyDone} / ${qtySum} 位` : '');
 
   if (relevantAll.length === 0) {
     document.getElementById('category-sections').innerHTML =
@@ -2079,14 +2085,14 @@ function renderCategoryPage(cat) {
   const pending = rest.filter(gu => !meta.isDone(gu));
   const done    = rest.filter(gu => meta.isDone(gu));
   const noAdultHTML = noAdult.length ? `
-    <div class="cat-sub-label">大人 0 位・不需報到（${noAdult.length}）</div>
+    <div class="cat-sub-label">大人 0 位・不需報到（${noAdult.length} 組・${meta.qtyLabel} ${noAdult.reduce((n, gu) => n + meta.qty(gu), 0)} 位）</div>
     <div class="pending-list-wrap">${noAdult.map(categoryRowHTML).join('')}</div>` : '';
 
   document.getElementById('category-sections').innerHTML = `
-    <div class="cat-sub-label">${meta.pendingLabel}（${pending.length}）</div>
+    <div class="cat-sub-label">${meta.pendingLabel}（${pending.length}${meta.qty ? ` 組・${meta.qtyLabel} ${pending.reduce((n, gu) => n + meta.qty(gu), 0)} 位` : ''}）</div>
     <div class="pending-list-wrap">${pending.length ? pending.map(categoryRowHTML).join('') : `<div class="pending-empty">— 全數完成 ✓ —</div>`}</div>
     <div class="cat-sub-label done cat-collapsible" onclick="toggleCatDone()">
-      <span>${meta.doneLabel}（${done.length}）</span>
+      <span>${meta.doneLabel}（${done.length}${meta.qty ? ` 組・${meta.qtyLabel} ${done.reduce((n, gu) => n + meta.qty(gu), 0)} 位` : ''}）</span>
       <span class="cat-collapse-arrow" id="cat-collapse-arrow">${catDoneExpanded ? '▾' : '▸'}</span>
     </div>
     <div class="pending-list-wrap cat-done-list" id="cat-done-list" style="display:${catDoneExpanded ? 'block' : 'none'};">
