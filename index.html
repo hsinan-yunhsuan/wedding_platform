@@ -1953,15 +1953,16 @@ function renderOverview() {
     if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
   });
 
-  // 更多總覽順序：賓客大人（含攜伴）、賓客兒童椅（＝賓客兒童數）、賓客素食、賓客組數、喜餅總數、喜宴甕總數、收禮組數
+  // 更多總覽順序（每張卡大小相同、皆可點進去看賓客名單；只有喜宴甕名單不分已領／未領）：
+  // 賓客大人（含攜伴）、賓客組數、賓客兒童椅（＝賓客兒童數）、賓客素食、喜餅總數、喜宴甕總數、收禮組數
   const cards = [
     { label:'賓客大人（含攜伴）', value:`${totals.checked} / ${totals.total}`, cat:'checkin', green:true },
-    { label:'賓客兒童椅',         value:`${totals.childTotal}`, clickable:false },
-    { label:'賓客素食',           value:`${totals.vegTotal}`,   clickable:false },
     { label:'賓客組數',           value:`${totals.groupsChecked} / ${totals.groupsTotal}`, cat:'checkin', green:true },
+    { label:'賓客兒童椅',         value:`${totals.childTotal}`, cat:'child' },
+    { label:'賓客素食',           value:`${totals.vegTotal}`,   cat:'veg' },
     { label:'喜餅總數',           value:`${totals.cakeQtyGiven} / ${totals.cakeQtyExpected}`, cat:'cake' },
     { label:'喜宴甕總數',         value:`${totals.jarQtyExpected}`, cat:'jar' },
-    { label:'收禮組數',           value:`${totals.giftCount} / ${totals.cardsTotal}`, cat:'gift', full:true },
+    { label:'收禮組數',           value:`${totals.giftCount} / ${totals.cardsTotal}`, cat:'gift' },
   ];
 
   document.getElementById('overview-body').innerHTML =
@@ -2008,6 +2009,19 @@ const CATEGORY_META = {
     relevant: gu => cakeQtyIsNumeric(gu.cakeQty),
     isDone: gu => rec(gu.id).cake
   },
+  child: {
+    // 兒童椅名單：依所屬小卡是否已到分「未到／已到」；大人 0 位的小卡不需報到，另列一區
+    title: '🍼 賓客兒童椅名單', pendingLabel: '未到', doneLabel: '已到',
+    relevant: gu => childQtyNumeric(gu.childChair) > 0,
+    isDone: gu => isCheckedIn(gu),
+    qty: gu => childQtyNumeric(gu.childChair), qtyLabel: '兒童', splitNoAdult: true
+  },
+  veg: {
+    title: '🥗 賓客素食名單', pendingLabel: '未到', doneLabel: '已到',
+    relevant: gu => (gu.vegQty || 0) > 0,
+    isDone: gu => isCheckedIn(gu),
+    qty: gu => gu.vegQty || 0, qtyLabel: '素食', splitNoAdult: true
+  },
   jar: {
     title: '🏺 可領取喜宴甕名單', pendingLabel: '', doneLabel: '',
     relevant: gu => !!(gu.jarQty && gu.jarQty > 0),
@@ -2025,12 +2039,16 @@ let catDoneExpanded = false;
 
 function categoryRowHTML(gu) {
   const r = rec(gu.id);
+  const meta = CATEGORY_META[curCategory] || {};
+  // 兒童／素食名單：右側顯示該項人數，桌次旁補上大人人數
+  const qtyTxt = meta.qty ? `${meta.qtyLabel} ${meta.qty(gu)} 位` : `${guestSeats(gu)} 位`;
+  const adultSub = meta.qty ? ` ・ 大人 ${guestSeats(gu)} 位` : '';
   const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
   const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
   return `<div class="tm-row" onclick="openModal(${gu.id})">
     <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
-    <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name + ' ・ ' : ''}桌次 ${tableTxt}</span></span>
-    <span class="tm-seats">${guestSeats(gu)} 位</span>
+    <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name + ' ・ ' : ''}桌次 ${tableTxt}${adultSub}</span></span>
+    <span class="tm-seats">${qtyTxt}</span>
   </div>`;
 }
 
@@ -2039,7 +2057,9 @@ function renderCategoryPage(cat) {
   const relevantAll = allGuests().filter(meta.relevant);
 
   document.getElementById('category-title').textContent = meta.title;
-  document.getElementById('category-count').textContent = `共 ${relevantAll.length} 組賓客`;
+  const qtySum = meta.qty ? relevantAll.reduce((sum, gu) => sum + meta.qty(gu), 0) : 0;
+  document.getElementById('category-count').textContent =
+    `共 ${relevantAll.length} 組賓客` + (meta.qty ? `・${meta.qtyLabel} ${qtySum} 位` : '');
 
   if (relevantAll.length === 0) {
     document.getElementById('category-sections').innerHTML =
@@ -2053,8 +2073,14 @@ function renderCategoryPage(cat) {
     return;
   }
 
-  const pending = relevantAll.filter(gu => !meta.isDone(gu));
-  const done    = relevantAll.filter(gu => meta.isDone(gu));
+  // 大人 0 位的小卡沒有報到狀態：兒童／素食名單把它們另列一區，不混進「未到」
+  const noAdult = meta.splitNoAdult ? relevantAll.filter(gu => guestSeats(gu) === 0) : [];
+  const rest    = meta.splitNoAdult ? relevantAll.filter(gu => guestSeats(gu) > 0) : relevantAll;
+  const pending = rest.filter(gu => !meta.isDone(gu));
+  const done    = rest.filter(gu => meta.isDone(gu));
+  const noAdultHTML = noAdult.length ? `
+    <div class="cat-sub-label">大人 0 位・不需報到（${noAdult.length}）</div>
+    <div class="pending-list-wrap">${noAdult.map(categoryRowHTML).join('')}</div>` : '';
 
   document.getElementById('category-sections').innerHTML = `
     <div class="cat-sub-label">${meta.pendingLabel}（${pending.length}）</div>
@@ -2065,7 +2091,7 @@ function renderCategoryPage(cat) {
     </div>
     <div class="pending-list-wrap cat-done-list" id="cat-done-list" style="display:${catDoneExpanded ? 'block' : 'none'};">
       ${done.length ? done.map(categoryRowHTML).join('') : `<div class="pending-empty">— 尚無資料 —</div>`}
-    </div>`;
+    </div>${noAdultHTML}`;
 }
 
 function toggleCatDone() {
