@@ -22,6 +22,7 @@
   --border: rgba(212,163,115,.25);
   --blue: #7a9cc7; --blue-light: rgba(122,156,199,.15);
   --pad: 20px;
+  --ctrl-w:116px;  /* 右側控制欄寬度 */
 }
 html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2ea 50%,#f3eee8 100%); font-family:'Noto Sans TC','Montserrat',sans-serif; color:var(--text); -webkit-font-smoothing:antialiased; }
 
@@ -65,8 +66,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   background:rgba(255,255,255,.9); border:1px solid var(--border);
   border-radius:var(--radius); padding:18px 12px 16px;
   box-shadow:var(--shadow-card); text-align:center; transition:all .2s;
+  display:flex; flex-direction:column; justify-content:center;
 }
-.stat-label { font-size:9px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; margin-bottom:8px; }
+.stat-label { font-size:13px; letter-spacing:.06em; color:var(--gold); margin-bottom:8px; line-height:1.35; }
 .stat-num { font-family:'Cormorant Garamond',serif; font-size:38px; font-weight:600; color:var(--gold); line-height:1; }
 .stat-unit { font-size:10px; color:var(--text-light); margin-top:4px; }
 .stat-card.green-num .stat-num { color:var(--green); }
@@ -81,7 +83,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .stat-card-click:active { transform:translateY(0); }
 .stat-card-entry { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
 .stat-entry-icon { font-size:22px; line-height:1; }
-.stat-entry-label { font-size:11px; font-weight:500; color:var(--gold-dark); letter-spacing:.02em; }
+.stat-entry-label { font-size:13px; font-weight:500; color:var(--gold-dark); letter-spacing:.02em; }
 
 /* ── QUICK NAV ─────────────────────────────────── */
 .quick-nav { padding:14px var(--pad) 0; }
@@ -118,7 +120,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .seat-icon.checked { background:var(--green); }
 .seat-icon.pending { background:var(--cream3); color:var(--text-light); }
 .tables-summary { padding:14px var(--pad) 0; font-size:12px; color:var(--text-mid); }
-.tables-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px var(--pad) 36px; }
+.tables-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px var(--pad) 20px; }
 .table-card.full { grid-column:1 / -1; }
 .table-card { padding:12px 12px 11px; cursor:pointer; }
 .table-card:hover { box-shadow:0 6px 24px rgba(140,110,80,.15); background:#fff; transform:translateY(-1px); }
@@ -126,6 +128,21 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-card-name { font-size:13px; }
 .table-card-ratio { font-size:11px; }
 @media (max-width:480px) { .tables-grid-layout { grid-template-columns:1fr 1fr; gap:8px; } }
+
+.detail-section { padding:0 var(--pad) 36px; }
+.detail-title { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
+.detail-title-main { font-size:14px; font-weight:500; color:var(--text); }
+.detail-title-sub { font-size:11px; color:var(--text-light); }
+.detail-table-wrap { background:rgba(255,255,255,.9); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); overflow:hidden; }
+.detail-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; text-align:center; color:var(--text); }
+.detail-table th { background:var(--cream2); color:var(--text-mid); font-size:12px; font-weight:500; padding:10px 4px; }
+.detail-table td { padding:10px 4px; border-top:1px solid var(--border); }
+.detail-table th:first-child, .detail-table td:first-child { text-align:left; padding-left:14px; }
+.detail-table tbody tr { cursor:pointer; transition:background .15s; }
+.detail-table tbody tr:hover { background:var(--cream2); }
+.detail-table .dt-zero { color:var(--text-light); }
+.detail-table tfoot td { background:var(--cream2); font-weight:500; border-top:1px solid var(--gold-light); }
+.detail-note { font-size:11px; color:var(--text-light); line-height:1.5; margin-top:8px; }
 
 /* ── TABLE GUEST LIST MODAL ────────────────────── */
 .tm-row {
@@ -330,7 +347,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .edit-label-block { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
 .edit-label-block .edit-label { flex:none; }
 .edit-note { font-size:10.5px; color:var(--text-light); line-height:1.5; }
-.seat-ctrl { display:flex; align-items:center; gap:10px; }
+.seat-ctrl { display:flex; align-items:center; justify-content:center; gap:10px; flex:none; width:var(--ctrl-w); }
 .seat-btn {
   width:30px; height:30px; border-radius:50%; border:1px solid var(--border);
   background:var(--cream2); font-size:16px; color:var(--text-mid);
@@ -349,20 +366,17 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   border:1px solid rgba(224,164,88,.5); border-radius:10px; padding:8px 12px;
 }
 .table-edit-row {
-  display:flex; flex-direction:column; gap:6px;
+  display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
   border-radius:var(--radius); padding:14px 16px;
   transition:border-color .15s;
 }
 .table-edit-row:focus-within { border-color:var(--gold-light); }
-.table-edit-row-main { display:flex; align-items:center; gap:10px; }
-.table-edit-label { font-size:14px; color:var(--text-mid); flex:1; }
 .table-edit-input {
+  flex:none; width:var(--ctrl-w); text-align:center;
   border:none; background:transparent; font-size:14px; font-weight:500;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
-  width:140px; text-align:right;
 }
-.table-edit-hint { font-size:10.5px; color:var(--text-light); line-height:1.5; }
 /* 桌次成員展開按鈕(所有小卡都顯示，樣式比照其他欄位方框)*/
 .table-expand-toggle {
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -395,12 +409,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .envno-input {
   border:none; background:transparent; font-size:14px; font-weight:500;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
-  text-align:right; flex:1; margin-left:10px; min-width:0;
+  text-align:center; flex:none; width:var(--ctrl-w); margin-left:10px;
 }
 .toggle-item.hidden { display:none; }
 .toggle-circle {
   width:28px; height:28px; border-radius:50%; border:2px solid var(--gold-lighter);
   display:flex; align-items:center; justify-content:center; font-size:13px; color:transparent; transition:all .15s;
+  flex-shrink:0; margin-right:calc((var(--ctrl-w) - 28px) / 2);
 }
 .toggle-item.active-toggle .toggle-circle { background:var(--green); border-color:var(--green); color:#fff; }
 
@@ -483,7 +498,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   .header-brand { font-size:17px; }
   .stats-grid { gap:8px; }
   .stat-card { padding:14px 6px 12px; }
-  .stat-label { font-size:8px; letter-spacing:.1em; margin-bottom:6px; }
+  .stat-label { font-size:11px; letter-spacing:0; margin-bottom:6px; }
   .stat-num { font-size:30px; }
   .sides-wrapper { grid-template-columns:1fr 1fr; gap:8px; padding:0 var(--pad) 24px; }
   .side-col { gap:7px; }
@@ -730,6 +745,7 @@ body { padding-bottom:82px; }
     <span style="color:var(--text-light);">綠色圓點為已到佔位</span>
   </div>
   <div id="tables-grid" class="tables-grid-layout"></div>
+  <div id="tables-detail" class="detail-section"></div>
 </div>
 
 <!-- CATEGORY DETAIL(已到／已領取喜餅／已領取喜宴甕，依分組列出未領取／已領取名單) -->
@@ -759,7 +775,7 @@ body { padding-bottom:82px; }
       <div class="toggle-list">
         <div class="toggle-item static-row">
           <span class="toggle-text">🧧 紅包編號</span>
-          <input class="envno-input" type="text" id="edit-envno" placeholder="可填寫文字或多筆編號" />
+          <input class="envno-input" type="text" id="edit-envno" placeholder="可填多筆編號" />
         </div>
         <div class="toggle-item" id="tog-cake" onclick="toggle('cake')">
           <span class="toggle-text">🎁 喜餅<span class="toggle-qty" id="cake-qty-label"></span></span>
@@ -777,11 +793,11 @@ body { padding-bottom:82px; }
       <div class="section-label">賓客資訊</div>
       <div class="guest-info-fields">
         <div class="table-edit-row">
-          <div class="table-edit-row-main">
-            <span class="table-edit-label">🪑 桌次(自動)</span>
-            <input class="table-edit-input" id="edit-table" placeholder="例：3桌 或 3桌、5桌" oninput="markTableManuallyEdited()" />
+          <div class="edit-label-block">
+            <span class="edit-label">🪑 桌次(自動)</span>
+            <span class="edit-note">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</span>
           </div>
-          <div class="table-edit-hint">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</div>
+          <input class="table-edit-input" id="edit-table" placeholder="例：3桌" oninput="markTableManuallyEdited()" />
         </div>
 
         <div class="edit-row">
@@ -1956,6 +1972,53 @@ function renderTables() {
 
   gridEl.querySelectorAll('.table-card[data-table]').forEach(el => {
     el.addEventListener('click', () => showTableGuestList(el.dataset.table));
+  });
+
+  renderTableDetail(data, anyVegUnknown);
+}
+
+// 各桌明細表格：葷食／素食／兒童椅(素食桌次無法確認時，改列「大人」人數)
+function renderTableDetail(data, anyVegUnknown) {
+  const el = document.getElementById('tables-detail');
+  if (!el) return;
+  if (!data.length) { el.innerHTML = ''; return; }
+
+  const { mainTables, paired, others } = orderTables(data);
+  const rows = [...mainTables, ...[...paired].sort((a, b) => a.num - b.num), ...others];
+
+  const cell = n => n > 0 ? n : '<span class="dt-zero">–</span>';
+  const sum = key => rows.reduce((s, t) => s + (t[key] || 0), 0);
+
+  const head = anyVegUnknown
+    ? '<th>桌次</th><th>大人</th><th>兒童椅</th>'
+    : '<th>桌次</th><th>葷食</th><th>素食</th><th>兒童椅</th>';
+  const rowHTML = t => {
+    const key = String(t.table).replace(/"/g, '&quot;');
+    const cols = anyVegUnknown
+      ? `<td>${cell(t.adults)}</td><td>${cell(t.babyQty)}</td>`
+      : `<td>${cell(t.meat)}</td><td>${cell(t.veg)}</td><td>${cell(t.babyQty)}</td>`;
+    return `<tr data-table="${key}"><td>${t.table}</td>${cols}</tr>`;
+  };
+  const foot = anyVegUnknown
+    ? `<td>合計</td><td>${sum('adults')}</td><td>${sum('babyQty')}</td>`
+    : `<td>合計</td><td>${sum('meat')}</td><td>${sum('veg')}</td><td>${sum('babyQty')}</td>`;
+  const note = anyVegUnknown
+    ? '有素食賓客分坐多桌，無法確認素食桌次，因此改列大人人數。'
+    : '數字為該桌預計人數(含未到)；「–」代表 0。點桌次可開啟該桌賓客名單。';
+
+  el.innerHTML = `
+    <div class="detail-title"><span class="detail-title-main">各桌明細</span><span class="detail-title-sub">依桌次排序</span></div>
+    <div class="detail-table-wrap">
+      <table class="detail-table">
+        <thead><tr>${head}</tr></thead>
+        <tbody>${rows.map(rowHTML).join('')}</tbody>
+        <tfoot><tr>${foot}</tr></tfoot>
+      </table>
+    </div>
+    <div class="detail-note">${note}</div>`;
+
+  el.querySelectorAll('tbody tr[data-table]').forEach(tr => {
+    tr.addEventListener('click', () => showTableGuestList(tr.dataset.table));
   });
 }
 
