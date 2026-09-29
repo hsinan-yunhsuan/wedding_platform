@@ -763,7 +763,7 @@ body { padding-bottom:82px; }
 <div class="modal-wrap" id="modal-wrap" onclick="handleWrapClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <button class="modal-corner-del" id="modal-del-btn" onclick="deleteGuestFromModal()" style="display:none;" title="刪除此現場新增賓客">🗑️</button>
+      <button class="modal-corner-del" id="modal-del-btn" onclick="deleteGuestFromModal()" style="display:none;" title="刪除此現場新增賓客">✕</button>
       <div class="modal-ornament">✦ 賓客登記 ✦</div>
       <div class="name-caption">報到大名</div>
       <div class="modal-name" id="m-name"></div>
@@ -795,7 +795,7 @@ body { padding-bottom:82px; }
         <div class="table-edit-row">
           <div class="edit-label-block">
             <span class="edit-label">🪑 桌次(自動)</span>
-            <span class="edit-note">可自動彙整或手動調整。分坐多桌請用「、」分隔，如：3桌x2、5桌x1</span>
+            <span class="edit-note">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</span>
           </div>
           <input class="table-edit-input" id="edit-table" placeholder="例：3桌" oninput="markTableManuallyEdited()" />
         </div>
@@ -869,7 +869,7 @@ body { padding-bottom:82px; }
       <div class="add-field">
         <label class="add-label">桌次</label>
         <input class="add-input" id="add-table" placeholder="例：3桌 或 3桌、5桌" />
-        <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，如：3桌x2、5桌x2</div>
+        <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，例如：3桌x2、5桌x2</div>
       </div>
       <div class="add-field">
         <label class="add-label">大人人數(含攜伴)</label>
