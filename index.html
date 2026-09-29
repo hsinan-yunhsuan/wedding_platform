@@ -347,15 +347,17 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .edit-label-block { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
 .edit-label-block .edit-label { flex:none; }
 .edit-note { font-size:10.5px; color:var(--text-light); line-height:1.5; }
-.seat-ctrl { display:flex; align-items:center; justify-content:center; gap:10px; flex:none; width:var(--ctrl-w); }
-.seat-btn {
-  width:30px; height:30px; border-radius:50%; border:1px solid var(--border);
-  background:var(--cream2); font-size:16px; color:var(--text-mid);
-  cursor:pointer; display:flex; align-items:center; justify-content:center;
-  transition:all .15s; font-family:sans-serif; line-height:1;
+.seat-ctrl {
+  display:flex; align-items:center; justify-content:center; gap:2px; flex:none; width:var(--ctrl-w);
+  background:var(--cream2); border:1px solid var(--border); border-radius:999px; padding:5px 6px;
 }
-.seat-btn:hover { background:var(--gold-lighter); border-color:var(--gold-light); color:var(--gold-dark); }
-.seat-num { font-size:16px; font-weight:500; color:var(--text); min-width:20px; text-align:center; }
+.seat-btn {
+  width:28px; height:28px; border-radius:50%; border:none; background:transparent;
+  font-size:16px; color:var(--text-mid); cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all .15s; font-family:sans-serif; line-height:1; flex-shrink:0;
+}
+.seat-btn:hover { background:rgba(212,163,115,.22); color:var(--gold-dark); }
+.seat-num { font-size:15px; font-weight:600; color:var(--text); min-width:22px; text-align:center; }
 /* 總人數／素食人數檢查列 */
 .headcount-check {
   font-size:12px; line-height:1.5; color:var(--text-light);
@@ -369,14 +371,15 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   display:flex; align-items:center; gap:10px;
   background:rgba(255,255,255,.85); border:1px solid var(--border);
   border-radius:var(--radius); padding:14px 16px;
-  transition:border-color .15s;
 }
-.table-edit-row:focus-within { border-color:var(--gold-light); }
 .table-edit-input {
   flex:none; width:var(--ctrl-w); text-align:center;
-  border:none; background:transparent; font-size:14px; font-weight:500;
+  border:1px solid var(--border); background:var(--cream2); border-radius:999px;
+  font-size:13.5px; font-weight:500; padding:8px 10px;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
+  transition:border-color .15s, background .15s;
 }
+.table-edit-input:focus { border-color:var(--gold-light); background:var(--white); }
 /* 桌次成員展開按鈕(所有小卡都顯示，樣式比照其他欄位方框)*/
 .table-expand-toggle {
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -407,17 +410,20 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .toggle-item.static-row { cursor:default; }
 .toggle-item.static-row:hover { background:rgba(255,255,255,.85); border-color:var(--border); }
 .envno-input {
-  border:none; background:transparent; font-size:14px; font-weight:500;
+  border:1px solid var(--border); background:var(--cream2); border-radius:999px;
+  font-size:13.5px; font-weight:500; padding:8px 10px;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
   text-align:center; flex:none; width:var(--ctrl-w); margin-left:10px;
+  transition:border-color .15s, background .15s;
 }
+.envno-input:focus { border-color:var(--gold-light); background:var(--white); }
 .toggle-item.hidden { display:none; }
 .toggle-circle {
-  width:28px; height:28px; border-radius:50%; border:2px solid var(--gold-lighter);
-  display:flex; align-items:center; justify-content:center; font-size:13px; color:transparent; transition:all .15s;
+  width:32px; height:32px; border-radius:50%; background:var(--cream2); border:1.5px solid var(--border);
+  display:flex; align-items:center; justify-content:center; font-size:14px; color:transparent; transition:all .15s;
   flex-shrink:0;
 }
-.toggle-item.active-toggle .toggle-circle { background:var(--green); border-color:var(--green); color:#fff; }
+.toggle-item.active-toggle .toggle-circle { background:var(--green); border-color:var(--green); color:#fff; box-shadow:0 2px 6px rgba(80,60,30,.15); }
 
 .modal-footer { padding:0 24px 24px; display:flex; flex-wrap:wrap; gap:10px; }
 .btn-cancel {
@@ -795,7 +801,7 @@ body { padding-bottom:82px; }
         <div class="table-edit-row">
           <div class="edit-label-block">
             <span class="edit-label">🪑 桌次(自動)</span>
-            <span class="edit-note">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</span>
+            <span class="edit-note">自動彙整或手動調整。分坐多桌請用「、」，例如：3桌x2、5桌x1</span>
           </div>
           <input class="table-edit-input" id="edit-table" placeholder="例：3桌" oninput="markTableManuallyEdited()" />
         </div>
@@ -874,7 +880,7 @@ body { padding-bottom:82px; }
       <div class="add-field">
         <label class="add-label">大人人數(含攜伴)</label>
         <input class="add-input" type="number" id="add-seats" placeholder="1" min="0" value="1" />
-        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童(可填 0)</div>
+        <div class="add-hint">請填寫此組報到之大人人數（包含自己和攜伴人數），不含兒童(可填 0)</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
