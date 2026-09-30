@@ -347,7 +347,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .edit-label-block { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
 .edit-label-block .edit-label { flex:none; }
 .edit-note { font-size:10.5px; color:var(--text-light); line-height:1.5; overflow-wrap:break-word; word-break:break-word; }
-.seat-ctrl { display:flex; align-items:center; gap:10px; flex:none; }
+.seat-ctrl { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex:none; width:var(--ctrl-w); }
 .seat-btn {
   width:32px; height:32px; border-radius:50%; border:1px solid var(--border);
   background:var(--cream2); font-size:16px; color:var(--text-mid);
@@ -373,8 +373,8 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 }
 .table-edit-row:focus-within { border-color:var(--gold-light); }
 .table-edit-input {
-  flex:none; width:140px; text-align:right;
-  border:none; background:transparent; font-size:14px; font-weight:500;
+  flex:none; width:var(--ctrl-w); text-align:right;
+  border:none; background:transparent; font-size:17px; font-weight:600;
   color:var(--text); outline:none; font-family:'Noto Sans TC',sans-serif;
 }
 /* 桌次成員展開按鈕(所有小卡都顯示，樣式比照其他欄位方框)*/
@@ -795,7 +795,7 @@ body { padding-bottom:82px; }
         <div class="table-edit-row">
           <div class="edit-label-block">
             <span class="edit-label">🪑 桌次(自動)</span>
-            <span class="edit-note">可自動彙整，亦可手動調整。分坐多桌請用「、」分隔，例如：3桌x2、5桌x1</span>
+            <span class="edit-note">自動彙整或手動調整。分坐多桌請用「、」分隔，如：3桌x2、5桌x1</span>
           </div>
           <input class="table-edit-input" id="edit-table" placeholder="例：3桌" oninput="markTableManuallyEdited()" />
         </div>
@@ -869,7 +869,7 @@ body { padding-bottom:82px; }
       <div class="add-field">
         <label class="add-label">桌次</label>
         <input class="add-input" id="add-table" placeholder="例：3桌 或 3桌、5桌" />
-        <div class="add-hint">若此組賓客分坐不同桌，請用「、」分隔，並可標註人數，例如：3桌x2、5桌x2</div>
+        <div class="add-hint">若分坐不同桌，請用「、」分隔，並標註人數，如：3桌x2、5桌x2</div>
       </div>
       <div class="add-field">
         <label class="add-label">大人人數(含攜伴)</label>
