@@ -2210,30 +2210,30 @@ function showTableListPage() {
   ['overview-page', 'guestlists-page'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('relgift-page').classList.add('active');
 }
-// 桌次表格：每桌一列(排序同桌次報到總覽：主桌→奇偶成對→其他)，欄位 桌次／大人／兒童／素食，最下面合計；顯示方式同禮品表格
+// 桌次表格：每桌一列(排序同桌次報到總覽：主桌→奇偶成對→其他)，欄位 桌次／葷食／素食／兒童椅，最下面合計；顯示方式同禮品表格
+// 有素食分坐多桌的賓客時，無法分出各桌葷食／素食：改列「大人」＋「兒童椅」(與桌次報到總覽卡片的做法一致)
 function renderTableListPage() {
   const data = getTableData();
   const { mainTables, paired, others } = orderTables(data);
   const ordered = [...mainTables, ...paired, ...others];
-  const anyVegUnknown = data.some(t => t.vegUnknown);   // 有素食分坐多桌的賓客 → 無法標注各桌素食
-  const cell = n => n > 0 ? n : '—';
-  const sumAdults = ordered.reduce((n, t) => n + t.adults, 0);
-  const sumChild  = ordered.reduce((n, t) => n + t.babyQty, 0);
-  const sumVeg    = anyVegUnknown ? allGuests().reduce((n, gu) => n + (gu.vegQty || 0), 0)
-                                  : ordered.reduce((n, t) => n + t.veg, 0);
+  const anyVegUnknown = data.some(t => t.vegUnknown);
+  const cell = n => n > 0 ? `<td>${n}</td>` : `<td class="rg-zero">—</td>`;
+  const sum = f => ordered.reduce((n, t) => n + f(t), 0);
+  const head = anyVegUnknown ? ['桌次', '大人', '兒童椅'] : ['桌次', '葷食', '素食', '兒童椅'];
+  const rowCells = t => anyVegUnknown ? cell(t.adults) + cell(t.babyQty)
+                                      : cell(t.meat) + cell(t.veg) + cell(t.babyQty);
+  const totalCells = anyVegUnknown ? `<td>${sum(t => t.adults)}</td><td>${sum(t => t.babyQty)}</td>`
+                                   : `<td>${sum(t => t.meat)}</td><td>${sum(t => t.veg)}</td><td>${sum(t => t.babyQty)}</td>`;
   const body = ordered.map(t => `<tr class="rg-row" data-table="${String(t.table).replace(/"/g, '&quot;')}">
-      <td class="rg-name">${t.table}</td>
-      <td class="${t.adults > 0 ? '' : 'rg-zero'}">${cell(t.adults)}</td>
-      <td class="${t.babyQty > 0 ? '' : 'rg-zero'}">${cell(t.babyQty)}</td>
-      <td class="${!anyVegUnknown && t.veg > 0 ? '' : 'rg-zero'}">${anyVegUnknown ? '—' : cell(t.veg)}</td>
+      <td class="rg-name">${t.table}</td>${rowCells(t)}
     </tr>`).join('');
   document.getElementById('relgift-title').textContent = '🪑 桌次';
-  document.getElementById('relgift-note').innerHTML = `每桌大人、兒童、素食人數；點擊桌次可查看該桌賓客名單${anyVegUnknown ? '<br>有素食分坐多桌的賓客，無法標注各桌素食人數；合計為全部素食人數' : ''}`;
+  document.getElementById('relgift-note').innerHTML = `每桌葷食、素食、兒童椅數量；點擊桌次可查看該桌賓客名單${anyVegUnknown ? '<br>有素食分坐多桌的賓客，無法標注各桌葷食／素食，改列大人人數' : ''}`;
   const el = document.getElementById('relgift-body');
   el.innerHTML = ordered.length
     ? `<div class="pending-list-wrap"><table class="rg-table">
-         <thead><tr><th>桌次</th><th>大人</th><th>兒童</th><th>素食</th></tr></thead>
-         <tbody>${body}<tr class="rg-total"><td>合計</td><td>${sumAdults}</td><td>${sumChild}</td><td>${sumVeg}</td></tr></tbody>
+         <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+         <tbody>${body}<tr class="rg-total"><td>合計</td>${totalCells}</tr></tbody>
        </table></div>`
     : `<div class="pending-empty" style="padding:40px 4px;">尚無桌次資料</div>`;
   el.querySelectorAll('.rg-row').forEach(tr => {
@@ -2288,13 +2288,12 @@ function renderGuestLists() {
   // 共用桌：沒有桌號的桌，或桌名含「共」的桌；X 桌只算「非主桌、非共用桌」
   const isSharedTable = t => t.table.includes('共');
   const normalCount = paired.filter(t => !isSharedTable(t)).length;
-  const sharedCount = others.length + paired.filter(isSharedTable).length;
   const tableCardText = [mainTables.length ? `主桌 ${mainPeople} 人` : '', normalCount ? `${normalCount} 桌` : ''].filter(Boolean).join(' ＋ ');
   const tableCard = tableCardText
     ? `<div class="stat-card stat-card-click full" onclick="showTableListPage()">
         <div class="stat-label">桌次</div>
         <div class="stat-line1" style="font-size:20px;">${tableCardText}</div>
-        <div class="ov-sub">${sharedCount ? `共用桌 ${sharedCount} 桌 ・ ` : ''}點擊查看表格</div>
+        <div class="ov-sub">點擊查看表格</div>
       </div>`
     : '';
 
