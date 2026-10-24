@@ -764,13 +764,13 @@ body { padding-bottom:82px; }
   <div id="category-sections" style="padding-bottom:36px;"></div>
 </div>
 
-<!-- 親屬禮品(喜餅＋喜宴甕，表格) -->
+<!-- 親屬禮品／朋友禮品(喜餅＋喜宴甕，表格) -->
 <div id="relgift-page" class="page">
   <div class="list-header">
     <button class="back-btn" onclick="goBackFromRelGift()">← 返回</button>
     <div class="list-header-title" id="relgift-title"></div>
   </div>
-  <div class="tables-summary">親屬的喜餅與喜宴甕數量(不含自己家)；點擊姓名可開啟登記視窗</div>
+  <div class="tables-summary" id="relgift-note"></div>
   <div id="relgift-body" style="padding:12px 0 36px;"></div>
 </div>
 
@@ -971,11 +971,12 @@ const OWN_FAMILY_KEYWORD = '自己家';
 function isOwnFamily(gu, groupName) {
   return String(groupName || '').includes(OWN_FAMILY_KEYWORD) || JSON.stringify(gu).includes(OWN_FAMILY_KEYWORD);
 }
-// 親屬禮品：「親屬」分組(新郎親屬、新娘親屬)裡、不含自己家、有喜餅或喜宴甕的賓客；side 為 all／groom／bride
-function relativeGiftRows(side) {
+// 親屬禮品／朋友禮品：kind 為 'rel'(「親屬」分組)或 'friend'(其餘分組)；不含自己家、有喜餅或喜宴甕的賓客；side 為 all／groom／bride
+const GIFT_KIND_LABEL = { rel:'親屬', friend:'朋友' };
+function giftRows(kind, side) {
   const rows = [];
   GROUPS.forEach(g => {
-    if (isFriendGroup(g.name)) return;
+    if (isFriendGroup(g.name) !== (kind === 'friend')) return;
     if (side !== 'all' && (isGroomGroup(g.name) ? 'groom' : 'bride') !== side) return;
     g.guests.forEach(gu => {
       if (isOwnFamily(gu, g.name)) return;
@@ -2108,7 +2109,7 @@ function renderOverview() {
   // 更多總覽：依「現場使用順序」分三組，每組兩張卡(最後一張喜宴甕只顯示總數、不顯示進度)：
   //   到場　　　：賓客大人(含攜伴)、賓客組數
   //   特殊需求　：賓客素食、賓客兒童椅(＝賓客兒童數)
-  //   禮品　　　：喜餅總數(親屬)、喜餅總數(朋友)、收禮組數、喜宴甕總數
+  //   禮品　　　：喜餅總數(親屬)、喜餅總數(朋友)、收禮組數，加上「親屬禮品」「朋友禮品」兩張橫幅卡(點進去是表格)
   // done／total 用來畫進度條與「已到／未到」文字；plain:true 表示只顯示總數
   const cards = [
     { group:'到場' },
@@ -2121,13 +2122,14 @@ function renderOverview() {
     { label:'喜餅總數(親屬)',   done:totals.cakeRelGiven,   total:totals.cakeRelExpected, u:['已領','未領'],   cat:'cake_rel' },
     { label:'喜餅總數(朋友)',   done:totals.cakeFriGiven,   total:totals.cakeFriExpected, u:['已領','未領'],   cat:'cake_fri' },
     { label:'收禮組數',         done:totals.giftCount,      total:totals.cardsTotal,      u:['已收','未收'],   cat:'gift' },
-    { label:'喜宴甕總數',       total:totals.jarQtyExpected, plain:true,                  cat:'jar' },
   ];
 
-  const rgRows = relativeGiftRows(overviewSide);
-  const rgCake = rgRows.reduce((n, x) => n + x.cake, 0);
-  const rgJar  = rgRows.reduce((n, x) => n + x.jar, 0);
-  cards.push({ relgift:true, label:'親屬禮品(喜餅／喜宴甕)', cake:rgCake, jar:rgJar, total:rgCake + rgJar });
+  ['rel', 'friend'].forEach(kind => {
+    const rows = giftRows(kind, overviewSide);
+    const cake = rows.reduce((n, x) => n + x.cake, 0);
+    const jar  = rows.reduce((n, x) => n + x.jar, 0);
+    cards.push({ giftKind:kind, label:`${GIFT_KIND_LABEL[kind]}禮品(喜餅／喜宴甕)`, cake, jar, total:cake + jar });
+  });
 
   const sideTabs = [['all','綜合'], ['groom','男方'], ['bride','女方']];
   const segHTML = `<div class="ov-seg">${sideTabs.map(([k, t]) =>
@@ -2144,8 +2146,8 @@ function renderOverview() {
 
   const cardsHTML = shown.map(c => {
     if (c.group) return `<div class="ov-group-title">${c.group}</div>`;
-    if (c.relgift) {
-      return `<div class="stat-card stat-card-click full" onclick="showRelGiftPage()">
+    if (c.giftKind) {
+      return `<div class="stat-card stat-card-click full" onclick="showGiftPage('${c.giftKind}')">
         <div class="stat-label">${c.label}</div>
         <div class="stat-line1" style="font-size:20px;">喜餅 ${c.cake} ・ 喜宴甕 ${c.jar}</div>
         <div class="ov-sub">不含自己家 ・ 點擊查看表格</div>
@@ -2179,10 +2181,12 @@ function showOverview() {
   document.getElementById('home').classList.remove('active');
   document.getElementById('overview-page').classList.add('active');
 }
-function showRelGiftPage() {
-  const rows = relativeGiftRows(overviewSide);
+function showGiftPage(kind) {
+  const rows = giftRows(kind, overviewSide);
+  const kindTxt = GIFT_KIND_LABEL[kind];
   const sideTxt = overviewSide === 'groom' ? '(男方)' : overviewSide === 'bride' ? '(女方)' : '';
-  document.getElementById('relgift-title').textContent = '🎁 親屬禮品' + sideTxt;
+  document.getElementById('relgift-title').textContent = `🎁 ${kindTxt}禮品` + sideTxt;
+  document.getElementById('relgift-note').textContent = `${kindTxt}的喜餅與喜宴甕數量(不含自己家)；點擊姓名可開啟登記視窗`;
   const cell = n => n > 0 ? n : '—';
   const totalCake = rows.reduce((n, x) => n + x.cake, 0);
   const totalJar  = rows.reduce((n, x) => n + x.jar, 0);
