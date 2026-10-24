@@ -989,7 +989,7 @@ function giftRows(kind, side) {
     if (isFriendGroup(g.name) !== (kind === 'friend')) return;
     if (side !== 'all' && (isGroomGroup(g.name) ? 'groom' : 'bride') !== side) return;
     g.guests.forEach(gu => {
-      if (isOwnFamily(gu, g.name)) return;
+      if (kind === 'rel' && isOwnFamily(gu, g.name)) return;   // 自己家只會出現在親屬；朋友不需要排除
       const cake = cakeQtyNumeric(gu.cakeQty);
       const jar  = gu.jarQty || 0;
       const note = (!cakeQtyIsNumeric(gu.cakeQty) && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
@@ -1982,7 +1982,7 @@ function orderTables(data) {
   return { mainTables, paired, others };
 }
 
-function renderTables() {
+function renderTables(targetEl) {
   const data = getTableData();
   const totalAll   = data.reduce((s,t) => s + t.totalSeats, 0);
   const checkedAll = data.reduce((s,t) => s + t.checkedSeats, 0);
@@ -2024,7 +2024,7 @@ function renderTables() {
     paired.map(t => cardHTML(t, false)).join('') +
     others.map(t => cardHTML(t, true)).join('');
 
-  const gridEl = document.getElementById('tables-grid');
+  const gridEl = targetEl || document.getElementById('tables-grid');
   gridEl.innerHTML =
     html || '<div class="table-card full" style="text-align:center;color:var(--text-light);font-size:13px;cursor:default;">尚無桌次資料</div>';
 
@@ -2072,7 +2072,7 @@ function handleTableWrapClick(e) { if (e.target === document.getElementById('tab
 
 // ── 總覽(不顯眼入口；彙總各項數字，與主頁小卡相同樣式，可點入查看名單)───
 // 男方／女方／綜合：與首頁相同的歸邊規則(分組名稱含「新郎」→男方；其餘→女方)
-let overviewSide = 'all';   // 'all' | 'groom' | 'bride'
+let overviewSide = 'all';   // 'tables'(每桌) | 'all' | 'groom' | 'bride'
 function overviewGuests(side) {
   if (side === 'all') return allGuests();
   return GROUPS.filter(g => (isGroomGroup(g.name) ? 'groom' : 'bride') === side).flatMap(g => g.guests);
@@ -2080,9 +2080,30 @@ function overviewGuests(side) {
 function setOverviewSide(side) {
   overviewSide = side;
   renderOverview();
+  // 一位素食分坐兩桌以上、且不是全部都吃素時，無法標注素食在哪一桌
+  if (side === 'tables' && getTableData().some(t => t.vegUnknown)) {
+    showToast('⚠️ 素食分桌問題，無法標注素食桌次', 'warn', 4200);
+  }
+}
+
+// 切換鈕：每桌｜綜合｜男方｜女方(「每桌」直接在這頁顯示每桌報到狀況)
+function ovSegHTML() {
+  const tabs = [['tables', '每桌'], ['all', '綜合'], ['groom', '男方'], ['bride', '女方']];
+  return `<div class="ov-seg">${tabs.map(([k, t]) =>
+    `<button type="button" class="${overviewSide === k ? 'on' : ''}" onclick="setOverviewSide('${k}')">${t}</button>`).join('')}</div>`;
 }
 
 function renderOverview() {
+  if (overviewSide === 'tables') {
+    document.getElementById('overview-body').innerHTML = ovSegHTML() + `
+      <div class="tables-summary" style="padding:6px 2px 0;">
+        佔位＝大人＋兒童椅・每桌最佳人數 10-12 人<br>
+        <span style="color:var(--text-light);">綠色圓點為已到佔位</span>
+      </div>
+      <div id="ov-tables-grid" class="tables-grid-layout" style="padding:12px 0 0;"></div>`;
+    renderTables(document.getElementById('ov-tables-grid'));
+    return;
+  }
   const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, cardsTotal:0, giftCount:0, childTotal:0, vegTotal:0, childChecked:0, vegChecked:0,
                     cakeQtyExpected:0, cakeQtyGiven:0,
                     cakeRelExpected:0, cakeRelGiven:0, cakeFriExpected:0, cakeFriGiven:0,
@@ -2120,7 +2141,7 @@ function renderOverview() {
   //   到場　　　：賓客大人(含攜伴)、賓客組數
   //   特殊需求　：賓客素食、賓客兒童椅(＝賓客兒童數)
   //   禮品　　　：喜餅總數(親屬)、喜餅總數(朋友)、收禮組數
-  //   (綜合第一排另有「每桌桌次總覽」橫幅卡；各方親屬／朋友禮品表格已移到「賓客表格名單」)
+  //   (切換鈕上方有「查看每桌報到狀況」按鈕；各方親屬／朋友禮品與桌次表格在「賓客表格名單」)
   // done／total 用來畫進度條與「已到／未到」文字；plain:true 表示只顯示總數
   const cards = [
     { group:'到場' },
@@ -2135,17 +2156,7 @@ function renderOverview() {
     { label:'收禮組數',         done:totals.giftCount,      total:totals.cardsTotal,      u:['已收','未收'],   cat:'gift' },
   ];
 
-  // 綜合才有、固定在第一排：每桌桌次總覽(點進去是桌次報到總覽)
-  if (overviewSide === 'all') {
-    const td = getTableData();
-    const seatsAll = td.reduce((n, t) => n + t.totalSeats, 0);
-    const seatsChecked = td.reduce((n, t) => n + t.checkedSeats, 0);
-    cards.unshift({ tablesEntry:true, label:'每桌桌次總覽', done:seatsChecked, total:seatsAll });
-  }
-
-  const sideTabs = [['all','綜合'], ['groom','男方'], ['bride','女方']];
-  const segHTML = `<div class="ov-seg">${sideTabs.map(([k, t]) =>
-    `<button type="button" class="${overviewSide === k ? 'on' : ''}" onclick="setOverviewSide('${k}')">${t}</button>`).join('')}</div>`;
+  const segHTML = ovSegHTML();
 
   const shown = [];
   let pendingGroup = null;
@@ -2158,13 +2169,6 @@ function renderOverview() {
 
   const cardsHTML = shown.map(c => {
     if (c.group) return `<div class="ov-group-title">${c.group}</div>`;
-    if (c.tablesEntry) {
-      return `<div class="stat-card stat-card-click full green-num" onclick="showTablesPage('overview')">
-        <div class="stat-label">${c.label}</div>
-        <div class="stat-line1" style="font-size:20px;">${c.done} / ${c.total} 佔位</div>
-        <div class="ov-sub">大人＋兒童椅 ・ 點擊查看每桌報到狀況</div>
-      </div>`;
-    }
     const cls = `stat-card stat-card-click${c.green ? ' green-num' : ''}`;
     const click = `onclick="showCategoryPage('${c.cat}','overview')"`;
     if (c.plain) {
@@ -2200,13 +2204,50 @@ function showGiftPage(kind, side) {
   ['overview-page', 'guestlists-page'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('relgift-page').classList.add('active');
 }
+function showTableListPage() {
+  lastGift = { kind:'tables' };
+  renderGiftPage();
+  ['overview-page', 'guestlists-page'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('relgift-page').classList.add('active');
+}
+// 桌次表格：每桌一列(排序同桌次報到總覽：主桌→奇偶成對→其他)，欄位 桌次／大人／兒童／素食，最下面合計；顯示方式同禮品表格
+function renderTableListPage() {
+  const data = getTableData();
+  const { mainTables, paired, others } = orderTables(data);
+  const ordered = [...mainTables, ...paired, ...others];
+  const anyVegUnknown = data.some(t => t.vegUnknown);   // 有素食分坐多桌的賓客 → 無法標注各桌素食
+  const cell = n => n > 0 ? n : '—';
+  const sumAdults = ordered.reduce((n, t) => n + t.adults, 0);
+  const sumChild  = ordered.reduce((n, t) => n + t.babyQty, 0);
+  const sumVeg    = anyVegUnknown ? allGuests().reduce((n, gu) => n + (gu.vegQty || 0), 0)
+                                  : ordered.reduce((n, t) => n + t.veg, 0);
+  const body = ordered.map(t => `<tr class="rg-row" data-table="${String(t.table).replace(/"/g, '&quot;')}">
+      <td class="rg-name">${t.table}</td>
+      <td class="${t.adults > 0 ? '' : 'rg-zero'}">${cell(t.adults)}</td>
+      <td class="${t.babyQty > 0 ? '' : 'rg-zero'}">${cell(t.babyQty)}</td>
+      <td class="${!anyVegUnknown && t.veg > 0 ? '' : 'rg-zero'}">${anyVegUnknown ? '—' : cell(t.veg)}</td>
+    </tr>`).join('');
+  document.getElementById('relgift-title').textContent = '🪑 桌次';
+  document.getElementById('relgift-note').innerHTML = `每桌大人、兒童、素食人數；點擊桌次可查看該桌賓客名單${anyVegUnknown ? '<br>有素食分坐多桌的賓客，無法標注各桌素食人數；合計為全部素食人數' : ''}`;
+  const el = document.getElementById('relgift-body');
+  el.innerHTML = ordered.length
+    ? `<div class="pending-list-wrap"><table class="rg-table">
+         <thead><tr><th>桌次</th><th>大人</th><th>兒童</th><th>素食</th></tr></thead>
+         <tbody>${body}<tr class="rg-total"><td>合計</td><td>${sumAdults}</td><td>${sumChild}</td><td>${sumVeg}</td></tr></tbody>
+       </table></div>`
+    : `<div class="pending-empty" style="padding:40px 4px;">尚無桌次資料</div>`;
+  el.querySelectorAll('.rg-row').forEach(tr => {
+    tr.addEventListener('click', () => showTableGuestList(tr.dataset.table));
+  });
+}
 function renderGiftPage() {
+  if (lastGift.kind === 'tables') { renderTableListPage(); return; }
   const { kind, side } = lastGift;
   const rows = giftRows(kind, side);
   const kindTxt = GIFT_KIND_LABEL[kind];
   const sideTxt = side === 'groom' ? '男方' : side === 'bride' ? '女方' : '';
   document.getElementById('relgift-title').textContent = `🎁 ${sideTxt}${kindTxt}禮品`;
-  document.getElementById('relgift-note').textContent = `${sideTxt}${kindTxt}的喜餅與喜宴甕數量(不含自己家)；點擊姓名可開啟登記視窗`;
+  document.getElementById('relgift-note').textContent = `${sideTxt}${kindTxt}的喜餅與喜宴甕數量${kind === 'rel' ? '(不含自己家)' : ''}；點擊姓名可開啟登記視窗`;
   const cell = n => n > 0 ? n : '—';
   const totalCake = rows.reduce((n, x) => n + x.cake, 0);
   const totalJar  = rows.reduce((n, x) => n + x.jar, 0);
@@ -2240,29 +2281,22 @@ function goHomeFromLists() {
   renderGroups(); refreshStats();
 }
 function renderGuestLists() {
-  // 桌次表格：每桌一列(排序同桌次報到總覽：主桌→奇偶成對→其他)，最下面合計
-  const data = getTableData();
-  const { mainTables, paired, others } = orderTables(data);
-  const ordered = [...mainTables, ...paired, ...others];
-  const anyVegUnknown = data.some(t => t.vegUnknown);   // 有素食分坐多桌的賓客 → 無法標注各桌素食
-  const cell = n => n > 0 ? n : '—';
-  const sumAdults = ordered.reduce((n, t) => n + t.adults, 0);
-  const sumChild  = ordered.reduce((n, t) => n + t.babyQty, 0);
-  const sumVeg    = anyVegUnknown ? allGuests().reduce((n, gu) => n + (gu.vegQty || 0), 0)
-                                  : ordered.reduce((n, t) => n + t.veg, 0);
-  const tableRows = ordered.map(t => `<tr class="rg-row" data-table="${String(t.table).replace(/"/g, '&quot;')}">
-      <td class="rg-name">${t.table}</td>
-      <td class="${t.adults > 0 ? '' : 'rg-zero'}">${cell(t.adults)}</td>
-      <td class="${t.babyQty > 0 ? '' : 'rg-zero'}">${cell(t.babyQty)}</td>
-      <td class="${!anyVegUnknown && t.veg > 0 ? '' : 'rg-zero'}">${anyVegUnknown ? '—' : cell(t.veg)}</td>
-    </tr>`).join('');
-  const tableHTML = ordered.length
-    ? `<div class="pending-list-wrap"><table class="rg-table">
-         <thead><tr><th>桌次</th><th>大人</th><th>兒童</th><th>素食</th></tr></thead>
-         <tbody>${tableRows}<tr class="rg-total"><td>合計</td><td>${sumAdults}</td><td>${sumChild}</td><td>${sumVeg}</td></tr></tbody>
-       </table></div>
-       <div class="tables-summary">${anyVegUnknown ? '有素食分坐多桌的賓客，無法標注各桌素食人數；合計為全部素食人數<br>' : ''}點擊桌次可查看該桌賓客名單</div>`
-    : `<div class="pending-empty" style="padding:30px 4px;">尚無桌次資料</div>`;
+  // 桌次小卡：共 主桌 X 人 ＋ X 桌；點進去才是表格(見 renderTableListPage)
+  const tData = getTableData();
+  const { mainTables, paired, others } = orderTables(tData);
+  const mainPeople = mainTables.reduce((n, t) => n + t.adults + t.babyQty, 0);   // 主桌人數 ＝ 大人＋兒童
+  // 共用桌：沒有桌號的桌，或桌名含「共」的桌；X 桌只算「非主桌、非共用桌」
+  const isSharedTable = t => t.table.includes('共');
+  const normalCount = paired.filter(t => !isSharedTable(t)).length;
+  const sharedCount = others.length + paired.filter(isSharedTable).length;
+  const tableCardText = [mainTables.length ? `主桌 ${mainPeople} 人` : '', normalCount ? `${normalCount} 桌` : ''].filter(Boolean).join(' ＋ ');
+  const tableCard = tableCardText
+    ? `<div class="stat-card stat-card-click full" onclick="showTableListPage()">
+        <div class="stat-label">桌次</div>
+        <div class="stat-line1" style="font-size:20px;">${tableCardText}</div>
+        <div class="ov-sub">${sharedCount ? `共用桌 ${sharedCount} 桌 ・ ` : ''}點擊查看表格</div>
+      </div>`
+    : '';
 
   // 禮品：男方親屬、女方親屬、男方朋友、女方朋友(喜餅＋喜宴甕合計為 0 的不顯示)
   const giftCards = [['rel', 'groom'], ['rel', 'bride'], ['friend', 'groom'], ['friend', 'bride']].map(([kind, side]) => {
@@ -2274,20 +2308,16 @@ function renderGuestLists() {
     return `<div class="stat-card stat-card-click full" onclick="showGiftPage('${kind}','${side}')">
         <div class="stat-label">${label}</div>
         <div class="stat-line1" style="font-size:20px;">喜餅 ${cake} ・ 喜宴甕 ${jar}</div>
-        <div class="ov-sub">不含自己家 ・ 點擊查看表格</div>
+        <div class="ov-sub">${kind === 'rel' ? '不含自己家 ・ ' : ''}點擊查看表格</div>
       </div>`;
   }).join('');
 
   const el = document.getElementById('guestlists-body');
   el.innerHTML = `
     <div class="ov-group-title" style="margin:6px 0 0; padding:0 var(--pad);">桌次</div>
-    ${tableHTML}
-    <div class="quick-nav" style="padding-top:4px;"><button class="quick-nav-btn" onclick="showTablesPage('lists')">🪑&nbsp; 查看每桌報到狀況</button></div>
+    <div style="padding:8px var(--pad) 0;">${tableCard ? `<div class="overview-stats-grid">${tableCard}</div>` : '<div class="pending-empty" style="padding:30px 4px;">尚無桌次資料</div>'}</div>
     <div class="ov-group-title" style="margin:18px 0 0; padding:0 var(--pad);">禮品</div>
     <div style="padding:8px var(--pad) 0;">${giftCards ? `<div class="overview-stats-grid">${giftCards}</div>` : '<div class="pending-empty" style="padding:30px 4px;">目前沒有禮品資料</div>'}</div>`;
-  el.querySelectorAll('.rg-row').forEach(tr => {
-    tr.addEventListener('click', () => showTableGuestList(tr.dataset.table));
-  });
 }
 
 function goHomeFromOverview() {
@@ -2613,6 +2643,7 @@ function save() {
   if (g) renderGuests(g.guests);
   if (document.getElementById('tables-page').classList.contains('active'))   renderTables();
   if (document.getElementById('guestlists-page').classList.contains('active')) renderGuestLists();
+  if (document.getElementById('overview-page').classList.contains('active') && overviewSide === 'tables') renderOverview();
   if (document.getElementById('relgift-page').classList.contains('active'))   renderGiftPage();
   if (document.getElementById('category-page').classList.contains('active') && curCategory) renderCategoryPage(curCategory);
   refreshStats(); renderGroups();
