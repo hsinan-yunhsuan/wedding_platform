@@ -66,7 +66,9 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   border-radius:var(--radius); padding:18px 12px 16px;
   box-shadow:var(--shadow-card); text-align:center; transition:all .2s;
 }
-.stat-label { font-size:9px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; margin-bottom:8px; }
+.stat-label { font-size:13px; line-height:1.35; letter-spacing:.04em; color:var(--gold); margin-bottom:10px; }
+@media (max-width:360px) { .stat-label { font-size:12px; letter-spacing:.02em; } }
+.stats-grid .stat-card:not(.stat-card-entry) { display:flex; flex-direction:column; justify-content:center; }
 .stat-num { font-family:'Cormorant Garamond',serif; font-size:38px; font-weight:600; color:var(--gold); line-height:1; }
 .stat-unit { font-size:10px; color:var(--text-light); margin-top:4px; }
 .stat-card.green-num .stat-num { color:var(--green); }
@@ -81,7 +83,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .stat-card-click:active { transform:translateY(0); }
 .stat-card-entry { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
 .stat-entry-icon { font-size:22px; line-height:1; }
-.stat-entry-label { font-size:11px; font-weight:500; color:var(--gold-dark); letter-spacing:.02em; }
+.stat-entry-label { font-size:13px; font-weight:500; color:var(--gold-dark); letter-spacing:.02em; }
 
 /* ── QUICK NAV ─────────────────────────────────── */
 .quick-nav { padding:14px var(--pad) 0; }
@@ -495,7 +497,7 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
   .header-brand { font-size:17px; }
   .stats-grid { gap:8px; }
   .stat-card { padding:14px 6px 12px; }
-  .stat-label { font-size:8px; letter-spacing:.1em; margin-bottom:6px; }
+  .stat-label { margin-bottom:8px; }
   .stat-num { font-size:30px; }
   .sides-wrapper { grid-template-columns:1fr 1fr; gap:8px; padding:0 var(--pad) 24px; }
   .side-col { gap:7px; }
@@ -931,6 +933,13 @@ function isBrideGroup(name) {
   return typeof name === 'string' && name.includes('新娘');
 }
 
+// ✏️ 判斷喜餅歸類(親屬／朋友)：分組名稱含「親屬」(新郎親屬、新娘親屬)→ 親屬；其餘所有分組一律算朋友。
+// 「更多總覽」的「喜餅總數(親屬)」「喜餅總數(朋友)」就是依此拆分。
+const RELATIVE_GROUP_KEYWORDS = ['親屬'];
+function isFriendGroup(name) {
+  return !(typeof name === 'string' && RELATIVE_GROUP_KEYWORDS.some(k => name.includes(k)));
+}
+
 let GROUPS = [];
 const records = {};
 let curGuestId = null, curGroupId = null, curCategory = null, categoryOrigin = 'home';
@@ -940,6 +949,10 @@ let tableManuallyEdited = false;   // 目前登記視窗是否處於「已手動
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
+function guestIsFriend(gu) {
+  const g = GROUPS.find(x => x.guests.some(y => y.id === gu.id));
+  return !!g && isFriendGroup(g.name);
+}
 
 // ── 大人人數：0 就是 0，不再強制當成 1 ───────────────
 // 只有欄位完全沒有資料(undefined／null／空字串／非數字)時才套用預設值 1
@@ -2023,6 +2036,7 @@ function setOverviewSide(side) {
 function renderOverview() {
   const totals = { checked:0, total:0, groupsChecked:0, groupsTotal:0, cardsTotal:0, giftCount:0, childTotal:0, vegTotal:0, childChecked:0, vegChecked:0,
                     cakeQtyExpected:0, cakeQtyGiven:0,
+                    cakeRelExpected:0, cakeRelGiven:0, cakeFriExpected:0, cakeFriGiven:0,
                     jarQtyExpected:0, jarQtyGiven:0 };
 
   overviewGuests(overviewSide).forEach(gu => {
@@ -2042,8 +2056,11 @@ function renderOverview() {
     if (r.envNo && String(r.envNo).trim() !== '') totals.giftCount += 1;
 
     const cakeQty = cakeQtyNumeric(gu.cakeQty);
+    const cakeGiven = r.cake ? (cakeQtyNumeric(r.cakeQty) || cakeQty) : 0;
     totals.cakeQtyExpected += cakeQty;
-    if (r.cake) totals.cakeQtyGiven += (cakeQtyNumeric(r.cakeQty) || cakeQty);
+    totals.cakeQtyGiven    += cakeGiven;
+    if (guestIsFriend(gu)) { totals.cakeFriExpected += cakeQty; totals.cakeFriGiven += cakeGiven; }
+    else                   { totals.cakeRelExpected += cakeQty; totals.cakeRelGiven += cakeGiven; }
 
     const jarQty = gu.jarQty || 0;
     totals.jarQtyExpected += jarQty;
@@ -2053,7 +2070,7 @@ function renderOverview() {
   // 更多總覽：依「現場使用順序」分三組，每組兩張卡(最後一張喜宴甕只顯示總數、不顯示進度)：
   //   到場　　　：賓客大人(含攜伴)、賓客組數
   //   特殊需求　：賓客素食、賓客兒童椅(＝賓客兒童數)
-  //   禮品　　　：喜餅總數、收禮組數、喜宴甕總數
+  //   禮品　　　：喜餅總數(親屬)、喜餅總數(朋友)、收禮組數、喜宴甕總數
   // done／total 用來畫進度條與「已到／未到」文字；plain:true 表示只顯示總數
   const cards = [
     { group:'到場' },
@@ -2063,7 +2080,8 @@ function renderOverview() {
     { label:'賓客素食',         done:totals.vegChecked,     total:totals.vegTotal,        u:['已到','未到'],   cat:'veg',     green:true },
     { label:'賓客兒童椅',       done:totals.childChecked,   total:totals.childTotal,      u:['已到','未到'],   cat:'child',   green:true },
     { group:'禮品' },
-    { label:'喜餅總數',         done:totals.cakeQtyGiven,   total:totals.cakeQtyExpected, u:['已領','未領'],   cat:'cake' },
+    { label:'喜餅總數(親屬)',   done:totals.cakeRelGiven,   total:totals.cakeRelExpected, u:['已領','未領'],   cat:'cake_rel' },
+    { label:'喜餅總數(朋友)',   done:totals.cakeFriGiven,   total:totals.cakeFriExpected, u:['已領','未領'],   cat:'cake_fri' },
     { label:'收禮組數',         done:totals.giftCount,      total:totals.cardsTotal,      u:['已收','未收'],   cat:'gift' },
     { label:'喜宴甕總數',       total:totals.jarQtyExpected, plain:true,                  cat:'jar' },
   ];
@@ -2072,7 +2090,16 @@ function renderOverview() {
   const segHTML = `<div class="ov-seg">${sideTabs.map(([k, t]) =>
     `<button type="button" class="${overviewSide === k ? 'on' : ''}" onclick="setOverviewSide('${k}')">${t}</button>`).join('')}</div>`;
 
-  const cardsHTML = cards.map(c => {
+  const shown = [];
+  let pendingGroup = null;
+  cards.forEach(c => {
+    if (c.group) { pendingGroup = c; return; }
+    if (!c.total) return;   // 總數為 0：不顯示該卡
+    if (pendingGroup) { shown.push(pendingGroup); pendingGroup = null; }
+    shown.push(c);
+  });
+
+  const cardsHTML = shown.map(c => {
     if (c.group) return `<div class="ov-group-title">${c.group}</div>`;
     const cls = `stat-card stat-card-click${c.green ? ' green-num' : ''}`;
     const click = `onclick="showCategoryPage('${c.cat}','overview')"`;
@@ -2092,7 +2119,9 @@ function renderOverview() {
   }).join('');
 
   document.getElementById('overview-body').innerHTML =
-    segHTML + `<div class="overview-stats-grid">${cardsHTML}</div>`;
+    segHTML + (shown.length
+      ? `<div class="overview-stats-grid">${cardsHTML}</div>`
+      : `<div class="pending-empty" style="padding:40px 4px;">目前沒有資料</div>`);
 }
 
 function showOverview() {
@@ -2161,6 +2190,14 @@ const CATEGORY_META = {
     isDone: gu => { const r = rec(gu.id); return !!(r.envNo && String(r.envNo).trim() !== ''); }
   }
 };
+
+// 喜餅名單依親屬／朋友拆成兩份，其餘設定沿用「喜餅」
+CATEGORY_META.cake_rel = Object.assign({}, CATEGORY_META.cake, {
+  title: '🎂 喜餅領取狀況(親屬)', relevant: gu => cakeQtyIsNumeric(gu.cakeQty) && !guestIsFriend(gu)
+});
+CATEGORY_META.cake_fri = Object.assign({}, CATEGORY_META.cake, {
+  title: '🎂 喜餅領取狀況(朋友)', relevant: gu => cakeQtyIsNumeric(gu.cakeQty) && guestIsFriend(gu)
+});
 
 let catDoneExpanded = false;
 let catSide = 'all';   // 從「更多總覽」點進來時，沿用總覽選的男方／女方／綜合；從首頁進來一律為全部
