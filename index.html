@@ -109,6 +109,13 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .ov-bar { height:5px; border-radius:3px; background:var(--cream3); overflow:hidden; margin-top:10px; }
 .ov-bar > i { display:block; height:100%; border-radius:3px; background:var(--gold); transition:width .3s ease; }
 .stat-card.green-num .ov-bar > i { background:var(--green); }
+.rg-table { width:100%; border-collapse:collapse; font-size:13px; }
+.rg-table th { font-size:12px; font-weight:500; color:var(--text-light); padding:10px 4px 8px; text-align:right; border-bottom:1px solid var(--border); }
+.rg-table th:first-child, .rg-table td:first-child { text-align:left; }
+.rg-table td { padding:11px 4px; text-align:right; border-bottom:1px solid var(--border); color:var(--text); }
+.rg-table td.rg-name { cursor:pointer; }
+.rg-table td.rg-zero { color:var(--text-light); }
+.rg-table tr.rg-total td { border-bottom:none; border-top:2px solid var(--gold-lighter); font-weight:600; color:var(--gold-dark); }
 .ov-sub { font-size:10.5px; color:var(--text-light); margin-top:6px; letter-spacing:.02em; }
 
 /* ── TABLES OVERVIEW PAGE ──────────────────────── */
@@ -757,6 +764,16 @@ body { padding-bottom:82px; }
   <div id="category-sections" style="padding-bottom:36px;"></div>
 </div>
 
+<!-- 親屬禮品(喜餅＋喜宴甕，表格) -->
+<div id="relgift-page" class="page">
+  <div class="list-header">
+    <button class="back-btn" onclick="goBackFromRelGift()">← 返回</button>
+    <div class="list-header-title" id="relgift-title"></div>
+  </div>
+  <div class="tables-summary">親屬的喜餅與喜宴甕數量(不含自己家)；點擊姓名可開啟登記視窗</div>
+  <div id="relgift-body" style="padding:12px 0 36px;"></div>
+</div>
+
 <!-- 登記 MODAL -->
 <div class="modal-wrap" id="modal-wrap" onclick="handleWrapClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -949,6 +966,27 @@ let tableManuallyEdited = false;   // 目前登記視窗是否處於「已手動
 let newGuestCounter = 9000;
 
 function allGuests() { return GROUPS.flatMap(g => g.guests); }
+// ✏️ 「自己家」(新人自己的家人)：只要該賓客任何欄位的文字(姓名、備註、桌次…)或所屬分組名稱含「自己家」，就不列入「親屬禮品」表格。
+const OWN_FAMILY_KEYWORD = '自己家';
+function isOwnFamily(gu, groupName) {
+  return String(groupName || '').includes(OWN_FAMILY_KEYWORD) || JSON.stringify(gu).includes(OWN_FAMILY_KEYWORD);
+}
+// 親屬禮品：「親屬」分組(新郎親屬、新娘親屬)裡、不含自己家、有喜餅或喜宴甕的賓客；side 為 all／groom／bride
+function relativeGiftRows(side) {
+  const rows = [];
+  GROUPS.forEach(g => {
+    if (isFriendGroup(g.name)) return;
+    if (side !== 'all' && (isGroomGroup(g.name) ? 'groom' : 'bride') !== side) return;
+    g.guests.forEach(gu => {
+      if (isOwnFamily(gu, g.name)) return;
+      const cake = cakeQtyNumeric(gu.cakeQty);
+      const jar  = gu.jarQty || 0;
+      const note = (!cakeQtyIsNumeric(gu.cakeQty) && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
+      if (cake > 0 || jar > 0 || note) rows.push({ gu, group: g.name, cake, jar, note });
+    });
+  });
+  return rows;
+}
 function guestIsFriend(gu) {
   const g = GROUPS.find(x => x.guests.some(y => y.id === gu.id));
   return !!g && isFriendGroup(g.name);
@@ -2086,6 +2124,11 @@ function renderOverview() {
     { label:'喜宴甕總數',       total:totals.jarQtyExpected, plain:true,                  cat:'jar' },
   ];
 
+  const rgRows = relativeGiftRows(overviewSide);
+  const rgCake = rgRows.reduce((n, x) => n + x.cake, 0);
+  const rgJar  = rgRows.reduce((n, x) => n + x.jar, 0);
+  cards.push({ relgift:true, label:'親屬禮品(喜餅／喜宴甕)', cake:rgCake, jar:rgJar, total:rgCake + rgJar });
+
   const sideTabs = [['all','綜合'], ['groom','男方'], ['bride','女方']];
   const segHTML = `<div class="ov-seg">${sideTabs.map(([k, t]) =>
     `<button type="button" class="${overviewSide === k ? 'on' : ''}" onclick="setOverviewSide('${k}')">${t}</button>`).join('')}</div>`;
@@ -2101,6 +2144,13 @@ function renderOverview() {
 
   const cardsHTML = shown.map(c => {
     if (c.group) return `<div class="ov-group-title">${c.group}</div>`;
+    if (c.relgift) {
+      return `<div class="stat-card stat-card-click full" onclick="showRelGiftPage()">
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-line1" style="font-size:20px;">喜餅 ${c.cake} ・ 喜宴甕 ${c.jar}</div>
+        <div class="ov-sub">不含自己家 ・ 點擊查看表格</div>
+      </div>`;
+    }
     const cls = `stat-card stat-card-click${c.green ? ' green-num' : ''}`;
     const click = `onclick="showCategoryPage('${c.cat}','overview')"`;
     if (c.plain) {
@@ -2127,6 +2177,32 @@ function renderOverview() {
 function showOverview() {
   renderOverview();
   document.getElementById('home').classList.remove('active');
+  document.getElementById('overview-page').classList.add('active');
+}
+function showRelGiftPage() {
+  const rows = relativeGiftRows(overviewSide);
+  const sideTxt = overviewSide === 'groom' ? '(男方)' : overviewSide === 'bride' ? '(女方)' : '';
+  document.getElementById('relgift-title').textContent = '🎁 親屬禮品' + sideTxt;
+  const cell = n => n > 0 ? n : '—';
+  const totalCake = rows.reduce((n, x) => n + x.cake, 0);
+  const totalJar  = rows.reduce((n, x) => n + x.jar, 0);
+  const body = rows.map(x => `<tr>
+      <td class="rg-name" onclick="openModal(${x.gu.id})">${x.gu.name}<span class="pending-sub">${x.group}</span></td>
+      <td class="${x.cake > 0 || x.note ? '' : 'rg-zero'}">${x.cake > 0 ? x.cake : (x.note || '—')}</td>
+      <td class="${x.jar > 0 ? '' : 'rg-zero'}">${cell(x.jar)}</td>
+    </tr>`).join('');
+  document.getElementById('relgift-body').innerHTML = rows.length
+    ? `<div class="pending-list-wrap"><table class="rg-table">
+         <thead><tr><th>名稱</th><th>喜餅</th><th>喜宴甕</th></tr></thead>
+         <tbody>${body}<tr class="rg-total"><td>合計</td><td>${totalCake}</td><td>${totalJar}</td></tr></tbody>
+       </table></div>`
+    : `<div class="pending-empty" style="padding:40px 4px;">目前沒有資料</div>`;
+  document.getElementById('overview-page').classList.remove('active');
+  document.getElementById('relgift-page').classList.add('active');
+}
+function goBackFromRelGift() {
+  document.getElementById('relgift-page').classList.remove('active');
+  renderOverview();
   document.getElementById('overview-page').classList.add('active');
 }
 function goHomeFromOverview() {
