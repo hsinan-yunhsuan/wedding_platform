@@ -709,7 +709,7 @@ body { padding-bottom:82px; }
     <div class="group-note" style="margin-top:10px;">＊大人人數＝含攜伴，不含兒童椅兒童，即為佔位人數；兒童＝需兒童椅的幼兒；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
-    <button class="quick-nav-btn" onclick="showGuestListsPage()">📋&nbsp; 查看賓客表格名單(禮品, 桌次)</button>
+    <button class="quick-nav-btn" onclick="showGuestListsPage()">📋&nbsp; 查看賓客表格名單 (桌次, 禮品)</button>
   </div>
   <div class="divider-section">
     <div class="divider-line"></div>
@@ -899,7 +899,7 @@ body { padding-bottom:82px; }
       <div class="add-field">
         <label class="add-label">大人人數(含攜伴)</label>
         <input class="add-input" type="number" id="add-seats" placeholder="1" min="0" value="1" />
-        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含兒童(可填 0)</div>
+        <div class="add-hint">請填寫此組報到之大人總人數，包含本人與所有攜伴人數，不含幼兒(可填 0)</div>
       </div>
     </div>
     <div class="modal-footer" style="margin-top:20px;">
@@ -990,10 +990,12 @@ function giftRows(kind, side) {
     if (side !== 'all' && (isGroomGroup(g.name) ? 'groom' : 'bride') !== side) return;
     g.guests.forEach(gu => {
       if (kind === 'rel' && isOwnFamily(gu, g.name)) return;   // 自己家只會出現在親屬；朋友不需要排除
+      // 喜餅／喜宴甕若填的是文字(例如「待確認」)：直接顯示該文字，不計入數量；只有數字才會加總
       const cake = cakeQtyNumeric(gu.cakeQty);
-      const jar  = gu.jarQty || 0;
-      const note = (!cakeQtyIsNumeric(gu.cakeQty) && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
-      if (cake > 0 || jar > 0 || note) rows.push({ gu, group: g.name, cake, jar, note });
+      const jar  = cakeQtyNumeric(gu.jarQty);
+      const cakeNote = (!cakeQtyIsNumeric(gu.cakeQty) && cakeQtyIsSet(gu.cakeQty)) ? String(gu.cakeQty).trim() : '';
+      const jarNote  = (!cakeQtyIsNumeric(gu.jarQty)  && cakeQtyIsSet(gu.jarQty))  ? String(gu.jarQty).trim()  : '';
+      if (cake > 0 || jar > 0 || cakeNote || jarNote) rows.push({ gu, group: g.name, cake, jar, cakeNote, jarNote });
     });
   });
   return rows;
@@ -2247,14 +2249,13 @@ function renderGiftPage() {
   const kindTxt = GIFT_KIND_LABEL[kind];
   const sideTxt = side === 'groom' ? '男方' : side === 'bride' ? '女方' : '';
   document.getElementById('relgift-title').textContent = `🎁 ${sideTxt}${kindTxt}禮品`;
-  document.getElementById('relgift-note').textContent = `${sideTxt}${kindTxt}的喜餅與喜宴甕數量${kind === 'rel' ? '(不含自己家)' : ''}；點擊姓名可開啟登記視窗`;
-  const cell = n => n > 0 ? n : '—';
+  document.getElementById('relgift-note').textContent = `${sideTxt}${kindTxt}的喜餅與喜宴甕數量${kind === 'rel' ? '(不含自己家)' : ''}；點擊姓名可開啟登記視窗；填文字的直接顯示、不計入合計`;
   const totalCake = rows.reduce((n, x) => n + x.cake, 0);
   const totalJar  = rows.reduce((n, x) => n + x.jar, 0);
   const body = rows.map(x => `<tr>
       <td class="rg-name" onclick="openModal(${x.gu.id})">${x.gu.name}<span class="pending-sub">${x.group}</span></td>
-      <td class="${x.cake > 0 || x.note ? '' : 'rg-zero'}">${x.cake > 0 ? x.cake : (x.note || '—')}</td>
-      <td class="${x.jar > 0 ? '' : 'rg-zero'}">${cell(x.jar)}</td>
+      <td class="${x.cake > 0 || x.cakeNote ? '' : 'rg-zero'}">${x.cake > 0 ? x.cake : (x.cakeNote || '—')}</td>
+      <td class="${x.jar > 0 || x.jarNote ? '' : 'rg-zero'}">${x.jar > 0 ? x.jar : (x.jarNote || '—')}</td>
     </tr>`).join('');
   document.getElementById('relgift-body').innerHTML = rows.length
     ? `<div class="pending-list-wrap"><table class="rg-table">
@@ -2302,7 +2303,7 @@ function renderGuestLists() {
     const rows = giftRows(kind, side);
     const cake = rows.reduce((n, x) => n + x.cake, 0);
     const jar  = rows.reduce((n, x) => n + x.jar, 0);
-    if (cake + jar === 0) return '';
+    if (rows.length === 0) return '';
     const label = `${side === 'groom' ? '男方' : '女方'}${GIFT_KIND_LABEL[kind]}禮品`;
     return `<div class="stat-card stat-card-click full" onclick="showGiftPage('${kind}','${side}')">
         <div class="stat-label">${label}</div>
