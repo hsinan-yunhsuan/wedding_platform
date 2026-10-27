@@ -709,7 +709,7 @@ body { padding-bottom:82px; }
     <div class="group-note" style="margin-top:10px;">＊大人人數＝含攜伴，不含兒童椅兒童，即為佔位人數；兒童＝需兒童椅的幼兒；喜餅＝份數；點擊卡片可查看詳細名單</div>
   </div>
   <div class="quick-nav">
-    <button class="quick-nav-btn" onclick="showGuestListsPage()">📋&nbsp; 查看賓客表格名單 (桌次, 禮品)</button>
+    <button class="quick-nav-btn" onclick="showGuestListsPage()">📋&nbsp; 查看賓客表格名單 (禮品, 桌次)</button>
   </div>
   <div class="divider-section">
     <div class="divider-line"></div>
@@ -2134,7 +2134,7 @@ function renderOverview() {
     if (guestIsFriend(gu)) { totals.cakeFriExpected += cakeQty; totals.cakeFriGiven += cakeGiven; }
     else                   { totals.cakeRelExpected += cakeQty; totals.cakeRelGiven += cakeGiven; }
 
-    const jarQty = gu.jarQty || 0;
+    const jarQty = cakeQtyNumeric(gu.jarQty);   // 喜宴甕若是文字(例如「已提前領」)不計入數量
     totals.jarQtyExpected += jarQty;
     if (r.jar) totals.jarQtyGiven += (r.jarQty || jarQty);
   });
