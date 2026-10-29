@@ -644,6 +644,18 @@ body { padding-bottom:82px; }
 }
 .gsearch-empty { padding:16px 14px; text-align:center; color:var(--text-light); font-size:12.5px; }
 @media (max-width:640px) { .gsearch-meta { max-width:38vw; } }
+#held-dialog{display:none;position:fixed;inset:0;z-index:100000;background:rgba(40,30,22,.55);align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+#held-dialog.open{display:flex}
+.hd-box{background:#FFFDF9;border-radius:20px;padding:22px 20px 14px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.3);color:#3B2F2A}
+.hd-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.hd-body{font-size:13.5px;line-height:1.6;color:#4d4036;max-height:34vh;overflow:auto}
+.hd-names{margin:8px 0;padding:8px 10px;background:#F6EFE3;border-radius:10px;font-size:13px}
+.hd-note{font-size:12px;color:#6F6154;margin-top:6px}
+.hd-actions{display:flex;gap:10px;margin-top:14px}
+.hd-btn{flex:1;min-height:46px;border-radius:14px;border:0;font-size:15px;font-weight:700;cursor:pointer}
+.hd-btn.primary{background:var(--gold-btn,#B08A4A);color:#fff}
+.hd-btn.danger{background:#fff;color:#9A3F1F;border:1.5px solid #D9A590}
+.hd-later{display:block;width:100%;min-height:44px;margin-top:4px;background:transparent;border:0;color:#6F6154;font-size:13px;cursor:pointer}
 #sync-badge {
   display:none; position:fixed; z-index:99998; right:10px;
   top:calc(env(safe-area-inset-top, 0px) + 8px);
@@ -952,6 +964,17 @@ body { padding-bottom:82px; }
   </div>
 </div>
 
+<div id="held-dialog" role="dialog" aria-modal="true" aria-labelledby="held-title">
+  <div class="hd-box">
+    <div class="hd-title" id="held-title">上次有登記資料沒有同步成功</div>
+    <div class="hd-body" id="held-body"></div>
+    <div class="hd-actions">
+      <button type="button" class="hd-btn primary" onclick="resendHeld()">補送</button>
+      <button type="button" class="hd-btn danger" onclick="discardHeld()">不補送</button>
+    </div>
+    <button type="button" class="hd-later" onclick="closeHeldDialog()">稍後再說</button>
+  </div>
+</div>
 <div id="sync-badge" onclick="manualFlush()"></div>
 <script>
 // ══════════════════════════════════════════════════
@@ -969,6 +992,7 @@ const GAS_URL = 'https://wedding-proxy.wedding-proxy.workers.dev';
 // ══════════════════════════════════════════════════
 const TOKEN_KEY = 'wedding_token_v2';
 const QUEUE_KEY = 'wedding_pending_v1';
+const RESUME_KEY = 'wedding_auto_resume';   // 登入過期後自動重新整理時使用：同一次操作中的資料可直接補送，不必再問
 let memToken = null;
 function getToken() { try { return localStorage.getItem(TOKEN_KEY) || memToken; } catch (e) { return memToken; } }
 function setToken(t) { memToken = t; try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {} }
@@ -1007,11 +1031,14 @@ async function apiFetch(path, opts = {}, timeoutMs = 15000) {
 }
 
 let authExpiredHandled = false;
+let skipUnloadPrompt = false;
 function handleAuthExpired() {
   if (authExpiredHandled) return;
   authExpiredHandled = true;
   clearToken();
   showToast('🔒 登入已過期，請重新輸入邀請碼(未同步的資料已保留在這支手機)', 'err', 4000);
+  try { sessionStorage.setItem(RESUME_KEY, '1'); } catch (e) {}
+  skipUnloadPrompt = true;
   setTimeout(() => location.reload(), 2500);
 }
 
@@ -1019,6 +1046,11 @@ function handleAuthExpired() {
 let pendingQueue = {};
 function loadQueue() {
   try { pendingQueue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '{}') || {}; } catch (e) { pendingQueue = {}; }
+  // 上次(關閉網頁前)沒送出的資料：標記為「保留中」，不自動補送，等使用者選擇「補送」或「不補送」。
+  // 例外：登入過期造成的自動重新整理，視為同一次操作，不保留。
+  let resume = false;
+  try { resume = sessionStorage.getItem(RESUME_KEY) === '1'; sessionStorage.removeItem(RESUME_KEY); } catch (e) {}
+  if (!resume) Object.values(pendingQueue).forEach(it => { if (it) it.held = true; });
 }
 function saveQueue() {
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(pendingQueue)); } catch (e) {}
@@ -1035,9 +1067,53 @@ function enqueueDelete(id) {
 function updatePendingBadge() {
   const el = document.getElementById('sync-badge');
   if (!el) return;
-  const n = Object.keys(pendingQueue).length;
-  el.style.display = n ? 'block' : 'none';
-  el.textContent = `⏳ 待同步 ${n} 筆・點此重試`;
+  // 只有「確定沒成功同步」的項目才算：送出失敗的，或是上次關網頁前沒送出的(保留中)。
+  // 剛按下完成登記、還在送出中的資料不會讓徽章閃一下。
+  const h = heldKeys().length;
+  const n = Object.values(pendingQueue).filter(it => it && (it.failed || it.held)).length;
+  el.style.display = (n && getToken()) ? 'block' : 'none';
+  el.textContent = h ? `上次有 ${h} 筆未同步・點此處理` : `待同步 ${n} 筆・點此重新確認`;
+}
+
+// ── 上次沒同步成功的資料(保留中)：補送或不補送，由使用者決定 ──
+function heldKeys() { return Object.keys(pendingQueue).filter(k => pendingQueue[k] && pendingQueue[k].held); }
+function activeCount() { return Object.keys(pendingQueue).filter(k => pendingQueue[k] && !pendingQueue[k].held).length; }
+function showHeldDialog() {
+  const keys = heldKeys();
+  const box = document.getElementById('held-dialog');
+  if (!keys.length || !box) return;
+  const names = keys.map(k => {
+    const it = pendingQueue[k];
+    return it.type === 'delete' ? '(刪除一位現場新增的賓客)' : (it.payload && it.payload.name) || '(未命名)';
+  });
+  const shown = names.slice(0, 8).map(n => escapeHtml(n)).join('、') + (names.length > 8 ? `…等 ${names.length} 筆` : '');
+  document.getElementById('held-body').innerHTML =
+    `共 <b>${keys.length}</b> 筆登記在上次關閉網頁前沒有同步到 Google Sheet：` +
+    `<div class="hd-names">${shown}</div>` +
+    `<b>補送</b>：把這些資料寫進 Google Sheet。<br><b>不補送</b>：刪除這些尚未同步的登記，無法復原。` +
+    `<div class="hd-note">畫面目前已套用這些資料；選「不補送」後會重新載入，回到 Google Sheet 目前的內容。</div>`;
+  box.classList.add('open');
+}
+function closeHeldDialog() {
+  const box = document.getElementById('held-dialog');
+  if (box) box.classList.remove('open');
+}
+function resendHeld() {
+  Object.values(pendingQueue).forEach(it => { if (it) delete it.held; });
+  saveQueue();
+  closeHeldDialog();
+  runSync('先前未同步的資料');
+}
+function discardHeld() {
+  const keys = heldKeys();
+  if (!keys.length) { closeHeldDialog(); return; }
+  if (!confirm(`確定不補送這 ${keys.length} 筆資料嗎？\n這些登記會被刪除，無法復原。`)) return;
+  keys.forEach(k => delete pendingQueue[k]);
+  saveQueue();
+  closeHeldDialog();
+  showToast('已捨棄未同步的資料，重新載入中…', 'ok', 2000);
+  skipUnloadPrompt = true;
+  setTimeout(() => location.reload(), 900);
 }
 loadQueue();
 
@@ -1053,7 +1129,7 @@ async function flushQueue() {
       flushAgain = false;
       for (const key of Object.keys(pendingQueue)) {
         const item = pendingQueue[key];
-        if (!item) continue;
+        if (!item || item.held) continue;       // 保留中的(上次沒送出的)資料，等使用者選擇後才送
         try {
           const body = item.type === 'delete'
             ? { action: 'deleteRecord', id: item.id }
@@ -1063,6 +1139,7 @@ async function flushQueue() {
           if (item.type === 'upsert') result.sentItems.push(item);
         } catch (e) {
           result.failed++;
+          if (pendingQueue[key] === item) item.failed = true;   // 標記為「沒成功同步」，徽章才會出現
           if (e instanceof AuthError) { result.authExpired = true; handleAuthExpired(); break; }
           if (e.kind === 'network') break;      // 連不上網路：後面的也不用試了，留待下次重試
           // 伺服器回報錯誤：這筆留在佇列，繼續送其他筆
@@ -1114,7 +1191,7 @@ async function runSync(label, quiet) {
   if (!quiet) showToast('⏳ 同步中…', 'ing', 10000);
   const res = await flushQueue();
   if (res.busy || res.noToken || res.authExpired) return;
-  const left = Object.keys(pendingQueue).length;
+  const left = activeCount();
   if (left > 0 || res.failed > 0) {
     if (!quiet) showToast(`⚠ ${label || '資料'} 尚未送達，已暫存在這支手機，連線恢復後會自動重試(待同步 ${left} 筆)`, 'err', 6000);
     return;
@@ -1132,6 +1209,7 @@ async function runSync(label, quiet) {
       const key = String(it.payload.id);
       if (pendingQueue[key]) return;                 // 已有更新的版本在佇列中
       it.verifyRetry = (it.verifyRetry || 0) + 1;
+      it.failed = true;
       if (it.verifyRetry <= 2) pendingQueue[key] = it; else giveUp++;
     });
     saveQueue();
@@ -1142,16 +1220,20 @@ async function runSync(label, quiet) {
     showToast(quiet ? `✓ 已補送 ${res.sentItems.length} 筆未同步資料` : `✓ ${who} 已同步至 Google Sheet`, 'ok');
   }
 }
-function manualFlush() { runSync('待同步資料'); }
+function manualFlush() {
+  if (!getToken()) { showToast('請先輸入邀請碼登入', 'err', 3000); return; }
+  if (heldKeys().length) { showHeldDialog(); return; }   // 有上次沒送出的資料：讓使用者選補送或不補送
+  runSync('待同步資料');
+}
 function autoFlush() {
-  if (!getToken() || !Object.keys(pendingQueue).length) return;
+  if (!getToken() || !activeCount()) return;
   runSync(null, true);
 }
 setInterval(autoFlush, 20000);
 window.addEventListener('online', autoFlush);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) autoFlush(); });
 window.addEventListener('beforeunload', e => {
-  if (Object.keys(pendingQueue).length) { e.preventDefault(); e.returnValue = ''; }
+  if (!skipUnloadPrompt && Object.keys(pendingQueue).length) { e.preventDefault(); e.returnValue = ''; }
 });
 window.addEventListener('DOMContentLoaded', updatePendingBadge);
 
@@ -1960,7 +2042,8 @@ async function loadAll(attempt = 1) {
       console.warn('找不到對應賓客的登記記錄：', lost);
       setTimeout(() => showToast(`⚠ 有 ${lost.length} 筆登記資料的姓名不在目前的賓客名單中，已略過(詳見瀏覽器 console)`, 'warn', 8000), 800);
     }
-    autoFlush();   // 有上次沒送出的資料就立刻補送
+    autoFlush();   // 本次操作中失敗的資料會自動補送
+    if (heldKeys().length) setTimeout(showHeldDialog, 700);   // 上次沒送出的資料：問使用者要不要補送
   } catch (e) {
     if (e instanceof AuthError) { handleAuthExpired(); return; }
     if (attempt < 3 && e instanceof NetError && e.kind === 'network') {
