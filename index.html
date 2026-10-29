@@ -644,6 +644,13 @@ body { padding-bottom:82px; }
 }
 .gsearch-empty { padding:16px 14px; text-align:center; color:var(--text-light); font-size:12.5px; }
 @media (max-width:640px) { .gsearch-meta { max-width:38vw; } }
+#sync-badge {
+  display:none; position:fixed; z-index:99998; right:10px;
+  top:calc(env(safe-area-inset-top, 0px) + 8px);
+  background:#c0392b; color:#fff; font-size:12px; line-height:1;
+  padding:7px 12px; border-radius:14px; cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.25);
+}
 </style>
 </head>
 <body>
@@ -945,10 +952,209 @@ body { padding-bottom:82px; }
   </div>
 </div>
 
+<div id="sync-badge" onclick="manualFlush()"></div>
 <script>
 // ══════════════════════════════════════════════════
 // Cloudflare Worker proxy — GAS 網址和 token 都藏在 Worker 裡，外部看不到
 const GAS_URL = 'https://wedding-proxy.wedding-proxy.workers.dev';
+
+// ══════════════════════════════════════════════════
+// 登入憑證(token)、API 呼叫(逾時／狀態碼／格式檢查)、離線待同步佇列
+// ──────────────────────────────────────────────────
+// ・邀請碼驗證成功後，Worker 會發一個有期限、帶簽章的 token；之後每個請求都帶
+//   Authorization: Bearer <token>，Worker 驗證不過就回 401，所以只改前端的 sessionStorage 無法繞過。
+// ・寫入不再使用 no-cors：可以真正讀到 Worker 的回應，知道這次寫入是成功還是失敗。
+// ・寫入失敗(沒網路、逾時、伺服器錯誤)的資料會先存在這支手機的 localStorage「待同步佇列」，
+//   重新整理也不會消失，並會自動重試(每 20 秒、網路恢復、切回畫面時)。
+// ══════════════════════════════════════════════════
+const TOKEN_KEY = 'wedding_token_v2';
+const QUEUE_KEY = 'wedding_pending_v1';
+let memToken = null;
+function getToken() { try { return localStorage.getItem(TOKEN_KEY) || memToken; } catch (e) { return memToken; } }
+function setToken(t) { memToken = t; try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {} }
+function clearToken() { memToken = null; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+try { sessionStorage.removeItem('invited'); } catch (e) {}   // 清掉舊版只在前端判斷的登入旗標
+
+class AuthError extends Error {}
+class NetError extends Error {
+  // kind: 'network'(連不上／逾時) 或 'server'(伺服器有回應但回報失敗)
+  constructor(msg, kind) { super(msg); this.kind = kind || 'network'; }
+}
+
+async function apiFetch(path, opts = {}, timeoutMs = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const headers = Object.assign({}, opts.headers || {});
+  const tk = getToken();
+  if (tk) headers['Authorization'] = 'Bearer ' + tk;
+  try {
+    const res = await fetch(GAS_URL + path, Object.assign({}, opts, { headers, signal: ctrl.signal }));
+    if (res.status === 401 || res.status === 403) throw new AuthError('登入已過期，請重新輸入邀請碼');
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) {}
+    if (!res.ok) throw new NetError((data && data.error) ? String(data.error) : `伺服器回應異常 (${res.status})`, 'server');
+    if (data === null || typeof data !== 'object') throw new NetError('伺服器回應格式錯誤，請稍後再試', 'server');
+    if (data.ok === false || data.error) throw new NetError(String(data.error || '伺服器回報失敗'), 'server');
+    return data;
+  } catch (e) {
+    if (e instanceof AuthError || e instanceof NetError) throw e;
+    if (e && e.name === 'AbortError') throw new NetError('連線逾時，請檢查網路後重試', 'network');
+    throw new NetError('網路連線失敗，請檢查網路', 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+let authExpiredHandled = false;
+function handleAuthExpired() {
+  if (authExpiredHandled) return;
+  authExpiredHandled = true;
+  clearToken();
+  showToast('🔒 登入已過期，請重新輸入邀請碼(未同步的資料已保留在這支手機)', 'err', 4000);
+  setTimeout(() => location.reload(), 2500);
+}
+
+// ── 待同步佇列：key = 賓客 id；同一位賓客只保留最新一筆 ──
+let pendingQueue = {};
+function loadQueue() {
+  try { pendingQueue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '{}') || {}; } catch (e) { pendingQueue = {}; }
+}
+function saveQueue() {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(pendingQueue)); } catch (e) {}
+  updatePendingBadge();
+}
+function enqueueUpsert(payload) {
+  pendingQueue[String(payload.id)] = { type: 'upsert', payload, queuedAt: Date.now() };
+  saveQueue();
+}
+function enqueueDelete(id) {
+  pendingQueue[String(id)] = { type: 'delete', id, queuedAt: Date.now() };
+  saveQueue();
+}
+function updatePendingBadge() {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  const n = Object.keys(pendingQueue).length;
+  el.style.display = n ? 'block' : 'none';
+  el.textContent = `⏳ 待同步 ${n} 筆・點此重試`;
+}
+loadQueue();
+
+// 送出佇列中的資料(一次只允許一個 flush 在跑；跑的途中又有新資料，會接著再送一輪)
+let flushing = false, flushAgain = false;
+async function flushQueue() {
+  if (flushing) { flushAgain = true; return { busy: true, sentItems: [], failed: 0 }; }
+  if (!getToken()) return { busy: false, sentItems: [], failed: 0, noToken: true };
+  flushing = true;
+  const result = { busy: false, sentItems: [], failed: 0, authExpired: false };
+  try {
+    do {
+      flushAgain = false;
+      for (const key of Object.keys(pendingQueue)) {
+        const item = pendingQueue[key];
+        if (!item) continue;
+        try {
+          const body = item.type === 'delete'
+            ? { action: 'deleteRecord', id: item.id }
+            : { records: [item.payload] };
+          await apiFetch('', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) });
+          if (pendingQueue[key] === item) delete pendingQueue[key];   // 送出途中若又被改過，保留新的那筆
+          if (item.type === 'upsert') result.sentItems.push(item);
+        } catch (e) {
+          result.failed++;
+          if (e instanceof AuthError) { result.authExpired = true; handleAuthExpired(); break; }
+          if (e.kind === 'network') break;      // 連不上網路：後面的也不用試了，留待下次重試
+          // 伺服器回報錯誤：這筆留在佇列，繼續送其他筆
+        }
+        saveQueue();
+      }
+    } while (flushAgain && !result.authExpired);
+  } finally {
+    flushing = false;
+    saveQueue();
+  }
+  return result;
+}
+
+// 回讀 Google Sheet 確認內容真的寫進去(不只是「有這個 id」，而是欄位內容一致)
+function recordMatchesPayload(row, p) {
+  const sameStr = (a, b) => String(a == null ? '' : a).trim() === String(b == null ? '' : b).trim();
+  return sameStr(row.table, p.table)
+    && parseSeatsValue(row.seats) === parseSeatsValue(p.seats)
+    && (row.checkin === '是') === !!p.checkin
+    && (row.cake === '是') === !!p.cake
+    && (row.jar === '是') === !!p.jar
+    && sameStr(row.envNo, p.envNo);
+}
+// 回傳「仍對不上」的項目陣列；完全無法回讀時回傳 null
+async function verifySynced(items, attempts = 4, delayMs = 900) {
+  let remaining = items.slice();
+  let gotAny = false;
+  for (let i = 0; i < attempts && remaining.length; i++) {
+    await new Promise(res => setTimeout(res, delayMs));
+    try {
+      const data = await apiFetch('?action=getRecords');
+      gotAny = true;
+      const rows = data.records || [];
+      remaining = remaining.filter(it => {
+        const row = rows.find(x => String(x.id) === String(it.payload.id));
+        return !(row && recordMatchesPayload(row, it.payload));
+      });
+    } catch (e) {
+      if (e instanceof AuthError) { handleAuthExpired(); return null; }
+    }
+    delayMs = Math.min(delayMs * 1.5, 3000);
+  }
+  return gotAny ? remaining : null;
+}
+
+// label：顯示用名稱(單筆賓客的姓名)；quiet：自動重試時不要用 Toast 洗版(失敗只更新右上角徽章)
+async function runSync(label, quiet) {
+  if (!quiet) showToast('⏳ 同步中…', 'ing', 10000);
+  const res = await flushQueue();
+  if (res.busy || res.noToken || res.authExpired) return;
+  const left = Object.keys(pendingQueue).length;
+  if (left > 0 || res.failed > 0) {
+    if (!quiet) showToast(`⚠ ${label || '資料'} 尚未送達，已暫存在這支手機，連線恢復後會自動重試(待同步 ${left} 筆)`, 'err', 6000);
+    return;
+  }
+  if (!res.sentItems.length) { if (!quiet) showToast('✓ 已同步', 'ok'); return; }
+
+  const who = label || (res.sentItems.length === 1 ? res.sentItems[0].payload.name : `${res.sentItems.length} 筆資料`);
+  const bad = await verifySynced(res.sentItems);
+  if (bad === null) {
+    showToast(`⚠ ${who} 已送出，但暫時無法回讀確認`, 'warn', 4000);
+  } else if (bad.length) {
+    // 內容對不上：重新排入佇列再送一次(最多 2 次)，仍不一致就請人工確認
+    let giveUp = 0;
+    bad.forEach(it => {
+      const key = String(it.payload.id);
+      if (pendingQueue[key]) return;                 // 已有更新的版本在佇列中
+      it.verifyRetry = (it.verifyRetry || 0) + 1;
+      if (it.verifyRetry <= 2) pendingQueue[key] = it; else giveUp++;
+    });
+    saveQueue();
+    showToast(giveUp
+      ? `⚠ ${who} 已送出，但 Google Sheet 的內容與送出的不一致，請請總召檢查`
+      : `⚠ ${who} 回讀內容不一致，稍後會自動重送`, 'warn', 5000);
+  } else {
+    showToast(quiet ? `✓ 已補送 ${res.sentItems.length} 筆未同步資料` : `✓ ${who} 已同步至 Google Sheet`, 'ok');
+  }
+}
+function manualFlush() { runSync('待同步資料'); }
+function autoFlush() {
+  if (!getToken() || !Object.keys(pendingQueue).length) return;
+  runSync(null, true);
+}
+setInterval(autoFlush, 20000);
+window.addEventListener('online', autoFlush);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) autoFlush(); });
+window.addEventListener('beforeunload', e => {
+  if (Object.keys(pendingQueue).length) { e.preventDefault(); e.returnValue = ''; }
+});
+window.addEventListener('DOMContentLoaded', updatePendingBadge);
+
 
 // ✏️ 判斷新郎／新娘方：只要分組名稱包含「新郎」兩個字，就歸類到新郎方(首頁左側)；
 // 包含「新娘」則歸類到新娘方(首頁右側)；兩者皆無時預設歸類到新娘方(右側)。
@@ -1023,9 +1229,20 @@ function isCheckedIn(gu) { return guestSeats(gu) > 0 && !!rec(gu.id).checkin; }
 //   "T3、T5"           → 平均分配 seats 人到 T3／T5(可用 、 , ， 分隔)
 //   "T3x2、T5x2"       → 明確指定各桌人數(x/X/×/* 皆可)
 //   混合寫法也支援，例如 "T3x2、T5"(T5 分得剩餘人數)
+// 桌次字串正規化：全形轉半形(Ｔ３→T3、，→,)、移除多餘空白(「3桌 x 2」→「3桌x2」)、
+// 乘號統一成 x(x／X／×／*／＊ 皆可)、分隔符號統一成「、」。
+// 解析與顯示前一律先正規化，所以資料庫裡即使有舊的、格式不一致的桌次也能正確解析。
+function normalizeTableStr(v) {
+  let t = String(v == null ? '' : v).normalize('NFKC');
+  t = t.replace(/\s+/g, ' ').trim();
+  t = t.replace(/\s*[、,，]\s*/g, '、');
+  t = t.replace(/\s*[xX×*]\s*(\d+)(?=、|$)/g, 'x$1');
+  return t.replace(/^、+|、+$/g, '');
+}
+
 function parseTableAssignments(tableStr, totalSeats) {
   const seats = (totalSeats === 0) ? 0 : (totalSeats || 1);   // 0 位大人就是 0，不強制為 1
-  const raw = (tableStr || '').trim();
+  const raw = normalizeTableStr(tableStr);
   if (!raw) return [{ table: '未分桌', seats }];
 
   const parts = raw.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
@@ -1067,14 +1284,14 @@ function parseTableAssignments(tableStr, totalSeats) {
 
 // 是否分坐多桌
 function isSplitTable(tableStr) {
-  const raw = (tableStr || '').trim();
+  const raw = normalizeTableStr(tableStr);
   if (!raw) return false;
   return raw.split(/[、,，]/).map(s => s.trim()).filter(Boolean).length > 1;
 }
 
 // 去除「桌號x人數」的標註，僅留桌號本身，供卡片簡潔顯示
 function formatTableDisplay(tableStr) {
-  const raw = (tableStr || '').trim();
+  const raw = normalizeTableStr(tableStr);
   if (!raw) return '';
   return raw.split(/[、,，]/).map(s => s.trim().replace(/[xX×\*]\d+$/, '')).filter(Boolean).join('、');
 }
@@ -1086,7 +1303,7 @@ function formatTableDisplay(tableStr) {
 //   (其餘未標註的桌次原本就是拿剩餘人數，本來就會自動吸收，不算異常)
 // 回傳 null 代表沒有需要提醒的問題；否則回傳已標註的總人數，供警告訊息使用
 function tableStringSeatMismatch(tableStr, adultSeats) {
-  const raw = (tableStr || '').trim();
+  const raw = normalizeTableStr(tableStr);
   if (!raw) return null;
   const parts = raw.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
   if (parts.length === 0) return null;
@@ -1115,7 +1332,7 @@ function memberIsFamily(m) {
 }
 
 function tableNamesOf(tableStr) {
-  return (tableStr || '').split(/[、,，]/).map(t => t.trim().replace(/[xX×\*]\d+$/, '')).filter(Boolean);
+  return normalizeTableStr(tableStr).split(/[、,，]/).map(t => t.trim().replace(/[xX×\*]\d+$/, '')).filter(Boolean);
 }
 
 // 回傳 [{table, qty}](qty 加總 ＝ childNum)；不分桌或沒有兒童時回傳 null
@@ -1459,7 +1676,7 @@ function childQtyNumeric(v) {
 function updateMemberTable(idx, value) {
   const gu = allGuests().find(x => x.id === curGuestId);
   if (!gu || !Array.isArray(gu.members) || !gu.members[idx]) return;
-  gu.members[idx].table = value.trim();
+  gu.members[idx].table = normalizeTableStr(value);
   recomputeAggregateTable(gu);
   updateTableSummaryDisplay(gu);
   refreshModalMetaTable(gu);
@@ -1473,8 +1690,8 @@ function refreshModalMetaTable(gu) {
   const split = isSplitTable(gu.table);
   const childTbl = gu.isNew ? '' : childTableLabel(gu, curChildQty);
   document.getElementById('m-meta').innerHTML =
-    `<span class="meta-pill">${gp ? gp.name : ''}</span>` +
-    `<span class="meta-pill">桌次 ${gu.table ? formatTableDisplay(gu.table) : '—'}</span>` +
+    `<span class="meta-pill">${gp ? escapeHtml(gp.name) : ''}</span>` +
+    `<span class="meta-pill">桌次 ${gu.table ? escapeHtml(formatTableDisplay(gu.table)) : '—'}</span>` +
     (split ? `<span class="meta-pill">🔀 分桌</span>` : '') +
     `<span class="meta-pill">${curSeats} 位(含攜伴)</span>` +
     (childTbl ? `<span class="meta-pill">🍼 兒童桌次 ${escapeHtml(childTbl)}</span>` : '');
@@ -1539,7 +1756,7 @@ function showToast(msg, type='ok', duration=3000) {
 
 // ── 底部：全域賓客搜尋(依姓名關鍵字，只要包含輸入的字即列出)───
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function handleGlobalSearch() {
@@ -1606,148 +1823,177 @@ document.addEventListener('click', e => {
 
 // ── 載入 ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('invited') === '1') loadAll();
+  if (getToken()) loadAll();
 });
 
-async function loadAll() {
-  try {
-    const [guestResp, recordResp] = await Promise.all([
-      fetch(GAS_URL + '?action=getGuests'),
-      fetch(GAS_URL + '?action=getRecords')
-    ]);
-    const guestData  = await guestResp.json();
-    const recordData = await recordResp.json();
+// 把「禮金記錄」的一列資料轉成前端 record 物件
+function recordFromRow(r) {
+  return {
+    amount: r.amount ? Number(r.amount) : null,
+    cake: r.cake === '是',
+    cakeQty: parseCakeQty(r.cakeQty),
+    jar: r.jar === '是',
+    jarQty: r.jarQty ? Number(r.jarQty) : 0,
+    checkin: r.checkin === '是',
+    envNo: (r.envNo !== undefined && r.envNo !== '' && r.envNo !== null) ? String(r.envNo) : null,
+    vegQty: (r.vegQty !== undefined && r.vegQty !== null && r.vegQty !== '') ? r.vegQty : '',
+    baby: (r.baby !== undefined && r.baby !== null && r.baby !== '') ? String(r.baby) : '',
+    updatedAt: r.updatedAt || null
+  };
+}
 
-    if (guestData.error) throw new Error(guestData.error);
-    if (!guestData.groups?.length) throw new Error('賓客名單為空');
+// 把一列記錄套用到編號 targetId 的賓客身上(targetId 可能與 r.id 不同：名單調整後依姓名重新對應)
+function applyRecordRow(r, targetId) {
+  records[targetId] = recordFromRow(r);
+
+  // targetId >= 9000 是現場新增的賓客，還原進對應分組
+  if (targetId >= 9000) {
+    if (!r.name) return;
+    // 若原分組找不到(例如臨時分組)，放進第一個分組
+    const targetGroup = GROUPS.find(g => g.name === (r.group || '')) || GROUPS[0];
+    if (!targetGroup) return;
+    if (!allGuests().some(g => g.id === targetId)) {
+      const newGu = { id: targetId, name: r.name, table: r.table || '', seats: parseSeatsValue(r.seats), isNew: true };
+      targetGroup.guests.push(newGu);
+      ensureOriginalSnapshot(newGu);
+    }
+    return;
+  }
+
+  // 已送出過的資料優先於賓客名單：桌次、大人人數、兒童、素食若曾在登記視窗修改並送出，
+  // 下次載入就顯示送出後的資料。原始快照在這之前已用賓客名單建立，
+  // 所以「還原賓客資料為預設」仍會回到賓客名單的內容。
+  const gu = allGuests().find(x => x.id === targetId);
+  if (!gu) return;
+  if (r.table) gu.table = r.table;
+  if (r.seats !== '' && r.seats !== undefined && r.seats !== null) gu.seats = parseSeatsValue(r.seats);
+  if (records[targetId].vegQty !== '') gu.vegQty = Number(records[targetId].vegQty) || 0;
+  if (records[targetId].baby   !== '') gu.childChair = records[targetId].baby;
+}
+
+// 套用一批記錄，回傳「找不到對應賓客」的記錄(orphans)。對應規則(兩階段)：
+//  1. 編號相同、且姓名一致 → 直接對應(現場新增賓客 id>=9000 一律直接還原)
+//  2. 編號對不上(名單增刪列造成編號位移)→ 改用「姓名＋分組」找唯一一位尚未被對應的賓客
+//  兩者都對不上的記錄不會套用：避免把 A 的報到狀態錯套到別人身上。
+function applyRecordRows(rows) {
+  const claimed = new Set();
+  const deferred = [];
+  rows.forEach(r => {
+    const id = Number(r.id);
+    if (!isFinite(id)) return;
+    if (id >= 9000) { applyRecordRow(r, id); return; }
+    const gu = allGuests().find(x => x.id === id);
+    if (gu && (!r.name || r.name === gu.name)) { applyRecordRow(r, id); claimed.add(id); }
+    else deferred.push(r);
+  });
+
+  const orphans = [];
+  deferred.forEach(r => {
+    const cands = [];
+    GROUPS.forEach(g => g.guests.forEach(gu => {
+      if (gu.id < 9000 && !gu.isNew && gu.name === r.name && (!r.group || g.name === r.group) && !claimed.has(gu.id)) cands.push(gu);
+    }));
+    if (r.name && cands.length === 1) { applyRecordRow(r, cands[0].id); claimed.add(cands[0].id); }
+    else orphans.push(r);
+  });
+  return orphans;
+}
+
+// 把還沒送出的待同步資料疊回畫面(重新整理後不會遺失)
+function applyQueuedItems() {
+  const upserts = [], deletes = [];
+  Object.values(pendingQueue).forEach(it => (it.type === 'delete' ? deletes : upserts).push(it));
+  const rows = upserts.map(it => {
+    const p = it.payload;
+    return {
+      id: p.id, name: p.name, group: p.group, table: p.table, seats: p.seats, amount: p.amount,
+      cake: p.cake ? '是' : '', cakeQty: p.cakeQty, jar: p.jar ? '是' : '', jarQty: p.jarQty,
+      checkin: p.checkin ? '是' : '', envNo: p.envNo, vegQty: p.vegQty, baby: p.baby,
+      updatedAt: new Date(it.queuedAt).toLocaleString('zh-TW')
+    };
+  });
+  const orphans = applyRecordRows(rows);
+  deletes.forEach(it => {
+    const id = Number(it.id);
+    if (id >= 9000) GROUPS.forEach(g => { g.guests = g.guests.filter(gu => gu.id !== id); });
+    delete records[id];
+  });
+  return orphans;
+}
+
+async function loadAll(attempt = 1) {
+  try {
+    const [guestData, recordData] = await Promise.all([
+      apiFetch('?action=getGuests'),
+      apiFetch('?action=getRecords')
+    ]);
+    if (!Array.isArray(guestData.groups) || !guestData.groups.length) throw new NetError('賓客名單為空', 'server');
 
     GROUPS = guestData.groups;
+    GROUPS.forEach(g => {
+      g.guests = (Array.isArray(g.guests) ? g.guests : []).filter(gu => gu && isFinite(Number(gu.id)));
+      g.guests.forEach(gu => { gu.id = Number(gu.id); });
+    });
 
     // 在套用「禮金記錄」的覆蓋值之前，用剛讀到的賓客名單資料重新建立原始快照，
     // 之後「還原賓客資料為預設」與「是否已手動調整」都以這份快照為準
     originalSnapshots = {};
     allGuests().forEach(gu => ensureOriginalSnapshot(gu));
 
-    if (recordData.records) {
-      recordData.records.forEach(r => {
-        const id = Number(r.id);
-        records[id] = {
-          amount: r.amount ? Number(r.amount) : null,
-          cake: r.cake === '是',
-          cakeQty: parseCakeQty(r.cakeQty),
-          jar: r.jar === '是',
-          jarQty: r.jarQty ? Number(r.jarQty) : 0,
-          checkin: r.checkin === '是',
-          envNo: (r.envNo !== undefined && r.envNo !== '' && r.envNo !== null) ? String(r.envNo) : null,
-          vegQty: (r.vegQty !== undefined && r.vegQty !== null && r.vegQty !== '') ? r.vegQty : '',
-          baby: (r.baby !== undefined && r.baby !== null && r.baby !== '') ? String(r.baby) : '',
-          updatedAt: r.updatedAt || null
-        };
-        // id >= 9000 是現場新增的賓客，還原進對應分組
-        if (id >= 9000 && r.name) {
-          const groupName = r.group || '';
-          let targetGroup = GROUPS.find(g => g.name === groupName);
-          // 若原分組找不到(例如臨時分組)，放進第一個分組
-          if (!targetGroup) targetGroup = GROUPS[0];
-          if (targetGroup) {
-            const alreadyIn = targetGroup.guests.some(g => g.id === id);
-            if (!alreadyIn) {
-              const newGu = {
-                id, name: r.name, table: r.table || '', seats: parseSeatsValue(r.seats), isNew: true
-              };
-              targetGroup.guests.push(newGu);
-              ensureOriginalSnapshot(newGu);
-              if (id >= newGuestCounter) newGuestCounter = id; // 避免 id 衝突
-            }
-          }
-        }
-        // 已送出過的資料優先於賓客名單：桌次、大人人數、兒童、素食若曾在登記視窗修改並送出，
-        // 下次載入就顯示送出後的資料(現場新增賓客沒有賓客名單來源，略過)。
-        // 原始快照在這之前已用賓客名單建立，所以「還原賓客資料為預設」仍會回到賓客名單的內容。
-        // 記錄的姓名和目前賓客名單對不上，代表名單調整過、編號位移了，這筆記錄不能套用。
-        if (id < 9000) {
-          const gu = allGuests().find(x => x.id === id);
-          if (gu && (!r.name || r.name === gu.name)) {
-            if (r.table) gu.table = r.table;
-            if (r.seats !== '' && r.seats !== undefined && r.seats !== null) gu.seats = parseSeatsValue(r.seats);
-            if (records[id].vegQty !== '') gu.vegQty = Number(records[id].vegQty) || 0;
-            if (records[id].baby   !== '') gu.childChair = records[id].baby;
-          }
-        }
-      });
-    }
+    Object.keys(records).forEach(k => delete records[k]);
+    const orphans = applyRecordRows(Array.isArray(recordData.records) ? recordData.records : []);
+    const queueOrphans = applyQueuedItems();
     persistOriginalSnapshots();
 
     renderGroups(); refreshStats();
+    updatePendingBadge();
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.add('hide');
     setTimeout(() => overlay.remove(), 500);
-  } catch(e) {
+
+    // 只有「姓名在目前名單裡完全找不到、且有實際登記內容」的記錄才提醒
+    // (同名賓客已被新編號的記錄接手的舊列，屬正常現象，不提醒)
+    const names = new Set(allGuests().map(g => g.name));
+    const lost = orphans.concat(queueOrphans).filter(r =>
+      !names.has(r.name) && (r.checkin === '是' || r.cake === '是' || r.jar === '是' || r.envNo || r.amount));
+    if (lost.length) {
+      console.warn('找不到對應賓客的登記記錄：', lost);
+      setTimeout(() => showToast(`⚠ 有 ${lost.length} 筆登記資料的姓名不在目前的賓客名單中，已略過(詳見瀏覽器 console)`, 'warn', 8000), 800);
+    }
+    autoFlush();   // 有上次沒送出的資料就立刻補送
+  } catch (e) {
+    if (e instanceof AuthError) { handleAuthExpired(); return; }
+    if (attempt < 3 && e instanceof NetError && e.kind === 'network') {
+      setTimeout(() => loadAll(attempt + 1), 1200 * attempt);   // 網路不穩：自動重試最多 3 次
+      return;
+    }
     document.getElementById('loading-overlay').innerHTML = `
       <div style="font-size:36px">⚠️</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);letter-spacing:2px;">載入失敗</div>
-      <div style="font-size:12px;color:var(--text-light);max-width:300px;text-align:center;">${e.message}</div>
+      <div style="font-size:12px;color:var(--text-light);max-width:300px;text-align:center;">${escapeHtml(e && e.message ? e.message : '未知錯誤')}</div>
       <button onclick="location.reload()" style="margin-top:8px;padding:10px 28px;border-radius:14px;background:var(--gold-btn);border:none;color:#fff;font-size:14px;cursor:pointer;">重新載入</button>`;
   }
 }
 
-// ── 驗證某筆資料是否已寫入 Google Sheet(多次重試，避免 GAS 寫入較慢時被誤判失敗)───
-async function verifyRecordSynced(id, attempts = 4, delayMs = 900) {
-  for (let i = 0; i < attempts; i++) {
-    await new Promise(res => setTimeout(res, delayMs));
-    try {
-      const verifyResp = await fetch(GAS_URL + '?action=getRecords');
-      const verifyData = await verifyResp.json();
-      const found = verifyData.records?.find(row => String(row.id) === String(id));
-      if (found) return true;
-    } catch (e) {
-      // 這次驗證失敗，稍後再重試一次
-    }
-    delayMs = Math.min(delayMs * 1.5, 3000);
-  }
-  return false;
-}
-
-// ── 同步(有成功/失敗提示)───────────────────────
-async function syncOne(guestId) {
+// ── 同步(寫入佇列 → 送出 → 回讀確認，見檔案開頭的 runSync)────
+// delayMs：有警告 Toast 時延後送出，避免「同步中…」立刻蓋掉警告；資料仍會「立刻」進入待同步佇列
+function syncOne(guestId, delayMs) {
   const gu = allGuests().find(x => x.id === guestId);
   if (!gu) return;
   const gp = GROUPS.find(g => g.guests.some(x => x.id === guestId));
   const r  = rec(guestId);
-  showToast('⏳ 同步中…','ing',10000);
-  try {
-    // GAS 跨域限制：用 no-cors 送 POST(無法讀回應)
-    // 改用 URL 參數方式送 GET 驗證是否成功
-    const payload = {
-      id: gu.id, name: gu.name, group: gp ? gp.name : '',
-      table: gu.table, seats: gu.seats,
-      amount: (r.amount !== null && r.amount !== undefined && r.amount !== '') ? r.amount : '',
-      cake: r.cake ? 1 : 0, cakeQty: r.cakeQty || 0,
-      jar: r.jar ? 1 : 0, jarQty: r.jarQty || 0,
-      checkin: r.checkin ? 1 : 0, envNo: (r.envNo !== null && r.envNo !== undefined) ? r.envNo : '',
-      vegQty: (r.vegQty !== null && r.vegQty !== undefined && r.vegQty !== '') ? r.vegQty : '',
-      baby: (r.baby !== null && r.baby !== undefined) ? r.baby : ''
-    };
-
-    // Step1: no-cors POST 寫入資料
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ records: [payload] })
-    });
-
-    // Step2: 多次重試 GET 驗證該筆是否真的寫進去了(GAS 寫入常需 1~3 秒，避免誤判失敗)
-    const found = await verifyRecordSynced(gu.id);
-
-    if (found) {
-      showToast(`✓ ${gu.name} 已同步至 Google Sheet`,'ok');
-    } else {
-      showToast(`⚠ ${gu.name} 已送出，Google Sheet 驗證中`,'ing',3000);
-    }
-  } catch(e) {
-    showToast(`✗ 同步失敗：${e.message || '網路錯誤，請確認網路連線'}`, 'err', 6000);
-  }
+  enqueueUpsert({
+    id: gu.id, name: gu.name, group: gp ? gp.name : '',
+    table: gu.table, seats: gu.seats,
+    amount: (r.amount !== null && r.amount !== undefined && r.amount !== '') ? r.amount : '',
+    cake: r.cake ? 1 : 0, cakeQty: r.cakeQty || 0,
+    jar: r.jar ? 1 : 0, jarQty: r.jarQty || 0,
+    checkin: r.checkin ? 1 : 0, envNo: (r.envNo !== null && r.envNo !== undefined) ? r.envNo : '',
+    vegQty: (r.vegQty !== null && r.vegQty !== undefined && r.vegQty !== '') ? r.vegQty : '',
+    baby: (r.baby !== null && r.baby !== undefined) ? r.baby : ''
+  });
+  if (delayMs) setTimeout(() => runSync(gu.name), delayMs);
+  else runSync(gu.name);
 }
 
 // ── 統計(主頁小卡：不含喜宴甕)───────────────────
@@ -1791,8 +2037,8 @@ function renderGroups() {
     card.onclick = () => showGroup(g.id);
     card.innerHTML = `
       <div class="group-top">
-        <span class="group-emoji">${g.emoji}</span>
-        <div class="group-name">${g.name}</div>
+        <span class="group-emoji">${escapeHtml(g.emoji)}</span>
+        <div class="group-name">${escapeHtml(g.name)}</div>
       </div>
       <div class="group-badges">
         <span class="badge badge-count">未到 ${eligible - chk} 組 / 共 ${eligible} 組賓客</span>
@@ -1835,7 +2081,7 @@ function renderGuests(guests) {
     else if (noAdult)   { statusTag='';         cardClass=''; }
     else if (isChecked) { statusTag='✓已到';    cardClass='is-checked'; }
     else                { statusTag='未到';        cardClass=''; }
-    const updatedLine = r.updatedAt ? `<span class="last-updated">${r.updatedAt}</span>` : '';
+    const updatedLine = r.updatedAt ? `<span class="last-updated">${escapeHtml(r.updatedAt)}</span>` : '';
     const deleteBtn = isNew
       ? `<button class="del-btn" onclick="event.stopPropagation();deleteGuest(${gu.id})" title="刪除">✕</button>`
       : '';
@@ -1847,10 +2093,10 @@ function renderGuests(guests) {
     const childTbl  = (!isNew && split) ? childTableLabel(gu, childNum) : '';   // 分桌時，兒童算在「一家」賓客的桌次
     const hasEnv    = r.envNo !== null && r.envNo !== undefined && r.envNo !== '';
     const tableRow  = noAdult ? '' :
-      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${tableDisp}${split?'<span class="split-tag">分桌</span>':''}</span></div>`;
+      `<div class="detail-row"><span class="detail-label">🪑 桌次</span><span class="detail-val${split?' split-val':''}">${escapeHtml(tableDisp)}${split?'<span class="split-tag">分桌</span>':''}</span></div>`;
     const adultRow  = `<div class="detail-row"><span class="detail-label">👥 大人</span><span class="detail-val">${seatsN} 位</span></div>`;
     const envRow    =
-      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${hasEnv ? r.envNo : '未填'}</span></div>`;
+      `<div class="detail-row"><span class="detail-label">🧧 紅包編號</span><span class="detail-val">${hasEnv ? escapeHtml(r.envNo) : '未填'}</span></div>`;
     // 現場新增的小卡：只顯示桌次、大人、紅包編號
     const detailRows = isNew ? [tableRow, adultRow, envRow].join('') : [
       tableRow,
@@ -1859,7 +2105,7 @@ function renderGuests(guests) {
       (!noAdult && gu.vegQty && gu.vegQty > 0) ? `<div class="detail-row"><span class="detail-label">🥗 素食</span><span class="detail-val">${gu.vegQty} 位</span></div>` : '',
       envRow,
       cakeIsNum ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? `已領取 × ${cakeQtyDisplay(gu.cakeQty)}` : `未領取(共 ${cakeQtyDisplay(gu.cakeQty)})`}</span></div>` : '',
-      cakeNote ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? '已領取' : '未領取'}(${cakeNote})</span></div>` : '',
+      cakeNote ? `<div class="detail-row"><span class="detail-label">🎁 喜餅</span><span class="detail-val">${r.cake ? '已領取' : '未領取'}(${escapeHtml(cakeNote)})</span></div>` : '',
     ].join('');
     const dotHtml = (noAdult && !isNew) ? '' : '<div class="status-dot"></div>';
     const footerHtml = (statusTag || updatedLine) ? `
@@ -1869,7 +2115,7 @@ function renderGuests(guests) {
       </div>` : '';
     return `<div class="guest-card ${cardClass}" onclick="openModal(${gu.id})">
       <div class="guest-name-row">
-        <div class="guest-name">${gu.name}</div>
+        <div class="guest-name">${escapeHtml(gu.name)}</div>
         <div style="display:flex;align-items:center;gap:6px;">${deleteBtn}${dotHtml}</div>
       </div>
       <div class="guest-details">
@@ -1902,17 +2148,9 @@ function deleteGuestFromModal() {
   deleteGuest(id);
 }
 
-async function syncDeleteRecord(id) {
-  try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'deleteRecord', id })
-    });
-  } catch(e) {
-    console.warn('刪除同步失敗', e);
-  }
+function syncDeleteRecord(id) {
+  enqueueDelete(id);
+  autoFlush();
 }
 
 function goHome() {
@@ -1998,7 +2236,7 @@ function renderTables(targetEl) {
     for (let i = 0; i < t.totalSeats; i++) {
       icons.push(`<div class="seat-icon ${i < t.checkedSeats ? 'checked' : 'pending'}"></div>`);
     }
-    const safeKey = String(t.table).replace(/"/g, '&quot;');
+    const safeKey = escapeHtml(t.table);
     // 下方注記：葷食 X 位＋素食 X 位＋兒童椅 X 張(兒童椅張數即兒童人數)
     // 沒有的項目就不寫出來(例如沒有素食就不顯示「素食0位」)；全部都沒有時整行不顯示；
     // 只要有任何一組「素食分坐多桌」的賓客，就無法標注素食桌次：所有桌都不顯示葷食／素食，改列大人人數
@@ -2013,7 +2251,7 @@ function renderTables(targetEl) {
     const extraLine = noteParts.length ? `<div class="table-card-extra">${noteParts.join('＋')}</div>` : '';
     return `<div class="table-card${full ? ' full' : ''}" data-table="${safeKey}">
       <div class="table-card-head">
-        <span class="table-card-name">🪑 ${t.table}</span>
+        <span class="table-card-name">🪑 ${escapeHtml(t.table)}</span>
         <span class="table-card-ratio"><span class="r-ok">${t.checkedSeats}</span>/${t.totalSeats}佔位</span>
       </div>
       <div class="seat-icons-row">${icons.join('')}</div>
@@ -2057,12 +2295,12 @@ function showTableGuestList(tableKey) {
 
   document.getElementById('tm-body').innerHTML = list.map(({gu, seatsHere, childHere, vegHere, vegUnknown, split}) => {
     const gp = GROUPS.find(g => g.guests.some(x => x.id === gu.id));
-    const dupSub = nameCounts[gu.name] > 1 && gp ? `<span class="pending-sub">${gp.name}</span>` : '';
+    const dupSub = nameCounts[gu.name] > 1 && gp ? `<span class="pending-sub">${escapeHtml(gp.name)}</span>` : '';
     // 素食是哪一位：有素食的賓客，姓名旁邊直接標 🥗(分坐多桌、桌次不明的也一樣標在他所在的每一桌)
     const vegTag = (vegUnknown || vegHere > 0) ? '<span class="tm-veg-tag">🥗</span>' : '';
     return `<div class="tm-row" onclick="closeTableModal(); openModal(${gu.id});">
       <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
-      <span class="tm-name">${gu.name}${vegTag}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
+      <span class="tm-name">${escapeHtml(gu.name)}${vegTag}${split ? '<span class="tm-split-tag">分桌</span>' : ''}${dupSub}</span>
       <span class="tm-seats">${seatsHere}位${split ? '(此桌)' : ''}${childHere > 0 ? `＋兒童椅${childHere}張` : ''}</span>
     </div>`;
   }).join('') || '<div style="padding:20px 4px;text-align:center;color:var(--text-light);font-size:13px;">此桌尚無賓客資料</div>';
@@ -2226,8 +2464,8 @@ function renderTableListPage() {
                                       : cell(t.meat) + cell(t.veg) + cell(t.babyQty);
   const totalCells = anyVegUnknown ? `<td>${sum(t => t.adults)}</td><td>${sum(t => t.babyQty)}</td>`
                                    : `<td>${sum(t => t.meat)}</td><td>${sum(t => t.veg)}</td><td>${sum(t => t.babyQty)}</td>`;
-  const body = ordered.map(t => `<tr class="rg-row" data-table="${String(t.table).replace(/"/g, '&quot;')}">
-      <td class="rg-name">${t.table}</td>${rowCells(t)}
+  const body = ordered.map(t => `<tr class="rg-row" data-table="${escapeHtml(t.table)}">
+      <td class="rg-name">${escapeHtml(t.table)}</td>${rowCells(t)}
     </tr>`).join('');
   document.getElementById('relgift-title').textContent = '🪑 桌次';
   document.getElementById('relgift-note').innerHTML = `每桌葷食、素食、兒童椅數量；點擊桌次可查看該桌賓客名單${anyVegUnknown ? '<br>有素食分坐多桌的賓客，無法標注各桌葷食／素食，改列大人人數' : ''}`;
@@ -2253,9 +2491,9 @@ function renderGiftPage() {
   const totalCake = rows.reduce((n, x) => n + x.cake, 0);
   const totalJar  = rows.reduce((n, x) => n + x.jar, 0);
   const body = rows.map(x => `<tr>
-      <td class="rg-name" onclick="openModal(${x.gu.id})">${x.gu.name}<span class="pending-sub">${x.group}</span></td>
-      <td class="${x.cake > 0 || x.cakeNote ? '' : 'rg-zero'}">${x.cake > 0 ? x.cake : (x.cakeNote || '—')}</td>
-      <td class="${x.jar > 0 || x.jarNote ? '' : 'rg-zero'}">${x.jar > 0 ? x.jar : (x.jarNote || '—')}</td>
+      <td class="rg-name" onclick="openModal(${x.gu.id})">${escapeHtml(x.gu.name)}<span class="pending-sub">${escapeHtml(x.group)}</span></td>
+      <td class="${x.cake > 0 || x.cakeNote ? '' : 'rg-zero'}">${x.cake > 0 ? x.cake : (x.cakeNote ? escapeHtml(x.cakeNote) : '—')}</td>
+      <td class="${x.jar > 0 || x.jarNote ? '' : 'rg-zero'}">${x.jar > 0 ? x.jar : (x.jarNote ? escapeHtml(x.jarNote) : '—')}</td>
     </tr>`).join('');
   document.getElementById('relgift-body').innerHTML = rows.length
     ? `<div class="pending-list-wrap"><table class="rg-table">
@@ -2414,7 +2652,7 @@ function categoryRowHTML(gu) {
   const tableTxt = gu.table ? formatTableDisplay(gu.table) : '未分桌';
   return `<div class="tm-row" onclick="openModal(${gu.id})">
     <span class="tm-dot ${isCheckedIn(gu) ? 'on' : ''}"></span>
-    <span class="tm-name">${gu.name}<span class="pending-sub">${gp ? gp.name + ' ・ ' : ''}桌次 ${tableTxt}${adultSub}</span></span>
+    <span class="tm-name">${escapeHtml(gu.name)}<span class="pending-sub">${gp ? escapeHtml(gp.name) + ' ・ ' : ''}桌次 ${escapeHtml(tableTxt)}${adultSub}</span></span>
     <span class="tm-seats">${qtyTxt}</span>
   </div>`;
 }
@@ -2608,7 +2846,8 @@ function save() {
   const gu = allGuests().find(x => x.id === curGuestId);
   // 更新賓客資料(桌次、人數)：桌次欄位一律可直接編輯(無論單一或多位成員)，
   // 多位成員小卡在展開編輯個別成員桌次時也會即時回寫更新這個欄位，以使用者最後輸入為準
-  gu.table = document.getElementById('edit-table').value.trim() || gu.table;
+  const tableInput = document.getElementById('edit-table').value.trim();
+  gu.table = (tableInput === (gu.table || '').trim()) ? gu.table : (normalizeTableStr(tableInput) || gu.table);
   gu.seats = curSeats;
 
   const envnoRaw = document.getElementById('edit-envno').value.trim();
@@ -2655,7 +2894,7 @@ function save() {
     // 先跳出警告，讓使用者看得到；資料仍會照常送出，只是延後一點再觸發同步的 Toast，
     // 避免「同步中…」的訊息立刻蓋掉這則警告
     showToast(`⚠️ ${warns.join('；')}，已為您送出`, 'warn', 3600);
-    setTimeout(() => syncOne(gidToSync), 3000);
+    syncOne(gidToSync, 3000);
   } else {
     syncOne(gidToSync);
   }
@@ -2724,16 +2963,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function saveNewGuest() {
   const name  = document.getElementById('add-name').value.trim();
-  const table = document.getElementById('add-table').value.trim();
+  const table = normalizeTableStr(document.getElementById('add-table').value);
   const seats = parseSeatsValue(parseInt(document.getElementById('add-seats').value, 10));   // 填 0 就是 0，不強制為 1
   if (!name) { showToast('請輸入賓客姓名','err'); return; }
 
   const g = GROUPS.find(x => x.id === curGroupId);
   if (!g) return;
 
-  // 用時間戳記＋亂數產生 ID，避免多台裝置同時「現場新增」時互相撞號、蓋掉彼此的資料
-  const newId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-  if (newId > newGuestCounter) newGuestCounter = newId;
+  // 用時間戳記＋亂數產生 ID，避免多台裝置同時「現場新增」時互相撞號、蓋掉彼此的資料。
+  // 【重要】ID 必須小於 10^15：Google Sheet 的數字只保留 15 位有效數字，超過會被四捨五入，
+  // 造成前端與表單的 id 對不上(驗證失敗、重複新增列)。Date.now()(13 位)×100＋兩位亂數 ＝ 15 位，安全。
+  let newId;
+  do { newId = Date.now() * 100 + Math.floor(Math.random() * 100); } while (allGuests().some(x => x.id === newId));
   // 現場新增的賓客沒有「賓客名單」來源資料：不帶喜餅份數、兒童、素食，
   // 因此登記視窗與小卡都不會出現喜餅／兒童／素食欄位，也不會被算進喜餅總計
   const newGuest = {id:newId, name, table, seats, isNew:true, cakeQty:''};
@@ -2744,32 +2985,16 @@ async function saveNewGuest() {
   renderGuests(g.guests);
   refreshStats(); renderGroups();
 
-  showToast('⏳ 新增中…','ing',10000);
-  try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ records: [{
-        id: newGuest.id, name: newGuest.name, group: g.name,
-        table: newGuest.table, seats: newGuest.seats,
-        amount: '', cake: 0, cakeQty: 0, jar: 0, jarQty: 0, checkin: 0, envNo: '',
-        vegQty: '', baby: ''
-      }]})
-    });
-    // no-cors 無法讀回應，多次重試 GET 驗證(GAS 寫入常需 1~3 秒，避免誤判失敗)
-    const found = await verifyRecordSynced(newGuest.id);
-    if (found) {
-      showToast(`✓ ${name} 已新增至 Google Sheet`,'ok');
-    } else {
-      showToast(`⚠ ${name} 已送出，Google Sheet 確認中`,'ing',3000);
-    }
-  } catch(e) {
-    showToast(`✗ 新增失敗：${e.message || '網路錯誤'}`, 'err', 6000);
-  }
+  enqueueUpsert({
+    id: newGuest.id, name: newGuest.name, group: g.name,
+    table: newGuest.table, seats: newGuest.seats,
+    amount: '', cake: 0, cakeQty: 0, jar: 0, jarQty: 0, checkin: 0, envNo: '',
+    vegQty: '', baby: ''
+  });
+  runSync(name);
 }
 
-// ── 邀請碼(送到 Worker 驗證，HTML 裡沒有明文)────────
+// ── 邀請碼(送到 Worker 驗證，HTML 裡沒有明文；驗證成功後 Worker 發 token，之後每個請求都要帶)────────
 async function checkInvite() {
   const input = document.getElementById('invite-input');
   const error = document.getElementById('invite-error');
@@ -2779,39 +3004,54 @@ async function checkInvite() {
 
   btn.disabled = true;
   btn.textContent = '驗證中…';
+  const resetBtn = () => { btn.disabled = false; btn.textContent = '進入系統'; };
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
     const resp = await fetch(GAS_URL + '/verify', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ code })
+      body:    JSON.stringify({ code }),
+      signal:  ctrl.signal
     });
-    const data = await resp.json();
+    let data = null;
+    try { data = await resp.json(); } catch (e) {}
 
-    if (data.ok) {
-      sessionStorage.setItem('invited', '1');
+    if (resp.status === 429) {
+      error.textContent = '嘗試次數過多，請稍後再試';
+      resetBtn();
+    } else if (data && data.ok && data.token) {
+      setToken(data.token);
+      authExpiredHandled = false;
       const screen = document.getElementById('invite-screen');
       screen.style.opacity = '0';
       screen.style.transition = 'opacity .4s ease';
       setTimeout(() => { screen.remove(); loadAll(); }, 400);
-    } else {
+    } else if (data && data.ok) {
+      error.textContent = '伺服器未回傳登入憑證，請確認 Worker 已更新為新版';
+      resetBtn();
+    } else if (resp.status === 401 || (data && data.ok === false)) {
       error.textContent = '邀請碼錯誤，請再試一次';
       input.classList.add('error');
       input.value = '';
-      btn.disabled = false;
-      btn.textContent = '進入系統';
+      resetBtn();
       setTimeout(() => { input.classList.remove('error'); input.focus(); }, 300);
+    } else {
+      error.textContent = '驗證失敗，請稍後再試';
+      resetBtn();
     }
-  } catch(e) {
-    error.textContent = '驗證失敗，請檢查網路連線';
-    btn.disabled = false;
-    btn.textContent = '進入系統';
+  } catch (e) {
+    error.textContent = (e && e.name === 'AbortError') ? '連線逾時，請檢查網路' : '驗證失敗，請檢查網路連線';
+    resetBtn();
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-// 已驗證過則直接進入
+// 已有有效憑證則直接進入(憑證是否過期由 Worker 判斷，過期時第一個請求會回 401 並要求重新輸入)
 window.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('invited') === '1') {
+  if (getToken()) {
     const screen = document.getElementById('invite-screen');
     if (screen) screen.remove();
   } else {
