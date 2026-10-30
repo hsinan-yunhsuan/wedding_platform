@@ -149,6 +149,15 @@ html,body { min-height:100vh; background:linear-gradient(160deg,#fdf8f2 0%,#f8f2
 .table-card-ratio { font-size:11px; }
 @media (max-width:480px) { .tables-grid-layout { grid-template-columns:1fr 1fr; gap:8px; } }
 
+/* 更多總覽「每桌」：與綜合分頁相同的小卡樣式 */
+.ov-tcard { text-align:center; padding:12px 8px 11px; }
+.ov-tcard.full { grid-column:1 / -1; padding:14px 8px 13px; }
+.ov-tcard .stat-label { margin-bottom:6px; letter-spacing:.04em; }
+.ov-tcard.main .stat-line1 { font-size:38px; }
+.ov-tcard .ov-unit { font-family:'Noto Sans TC',sans-serif; font-size:11px; font-weight:400; color:var(--text-light); margin-left:4px; letter-spacing:.04em; }
+.ov-tcard .ov-bar { margin:8px 6px 0; }
+.ov-tnote { display:flex; justify-content:center; flex-wrap:wrap; gap:4px 7px; font-size:10.5px; color:var(--text-light); margin-top:7px; min-height:14px; }
+
 /* ── TABLE GUEST LIST MODAL ────────────────────── */
 .tm-row {
   display:flex; align-items:center; gap:10px; padding:11px 4px;
@@ -2342,16 +2351,38 @@ function renderTables(targetEl) {
     </div>`;
   }
 
-  const html =
-    mainTables.map(t => cardHTML(t, true)).join('') +
-    paired.map(t => cardHTML(t, false)).join('') +
-    others.map(t => cardHTML(t, true)).join('');
+  // 更多總覽(傳入 targetEl)：每桌一張小卡，桌號在上、中間大字「已到 / 佔位」、下方小字葷食／素食／兒童椅
+  function ovCardHTML(t, full, isMain) {
+    const pct = t.totalSeats > 0 ? Math.min(100, Math.round(t.checkedSeats / t.totalSeats * 100)) : 0;
+    const parts = [];
+    if (anyVegUnknown) {
+      if (t.adults > 0) parts.push(`大人 ${t.adults}`);
+    } else {
+      if (t.meat > 0) parts.push(`葷食 ${t.meat}`);
+      if (t.veg  > 0) parts.push(`素食 ${t.veg}`);
+    }
+    if (t.babyQty > 0) parts.push(`兒童椅 ${t.babyQty}`);
+    return `<div class="stat-card stat-card-click green-num ov-tcard${full ? ' full' : ''}${isMain ? ' main' : ''}" data-table="${escapeHtml(t.table)}">
+      <div class="stat-label">${escapeHtml(t.table)}</div>
+      <div class="stat-line1">${t.checkedSeats} / ${t.totalSeats}<span class="ov-unit">佔位</span></div>
+      <div class="ov-bar"><i style="width:${pct}%"></i></div>
+      <div class="ov-tnote">${parts.map(x => `<span>${x}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  const html = targetEl
+    ? mainTables.map(t => ovCardHTML(t, true, true)).join('') +
+      paired.map(t => ovCardHTML(t, false, false)).join('') +
+      others.map(t => ovCardHTML(t, true, false)).join('')
+    : mainTables.map(t => cardHTML(t, true)).join('') +
+      paired.map(t => cardHTML(t, false)).join('') +
+      others.map(t => cardHTML(t, true)).join('');
 
   const gridEl = targetEl || document.getElementById('tables-grid');
   gridEl.innerHTML =
     html || '<div class="table-card full" style="text-align:center;color:var(--text-light);font-size:13px;cursor:default;">尚無桌次資料</div>';
 
-  gridEl.querySelectorAll('.table-card[data-table]').forEach(el => {
+  gridEl.querySelectorAll('[data-table]').forEach(el => {
     el.addEventListener('click', () => showTableGuestList(el.dataset.table));
   });
 }
@@ -2420,8 +2451,7 @@ function renderOverview() {
   if (overviewSide === 'tables') {
     document.getElementById('overview-body').innerHTML = ovSegHTML() + `
       <div class="tables-summary" style="padding:6px 2px 0;">
-        佔位＝大人＋兒童椅・每桌最佳人數 10-12 人<br>
-        <span style="color:var(--text-light);">綠色圓點為已到佔位</span>
+        佔位＝大人＋兒童椅・每桌最佳人數 10-12 人
       </div>
       <div id="ov-tables-grid" class="tables-grid-layout" style="padding:12px 0 0;"></div>`;
     renderTables(document.getElementById('ov-tables-grid'));
